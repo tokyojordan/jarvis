@@ -142,8 +142,9 @@ export interface Contact {
   birthdays?: Birthday[];
   events?: Event[];
   genders?: Array<{
-    value: 'male' | 'female';
+    value: 'male' | 'female' | 'other' | 'unknown';
     formattedValue?: string;
+    customGender?: string;
   }>;
   
   // Relationships
@@ -223,6 +224,40 @@ export interface Task {
   linkedMeetingMinutes?: string;
   createdAt: Date;
   updatedAt?: Date;
+}
+
+export interface CalendarEvent {
+  id?: string;
+  userId: string;
+  
+  // Event Details
+  title: string;
+  description?: string;
+  location?: string;
+  
+  // Timing
+  startTime: Date;
+  endTime: Date;
+  timezone?: string;
+  
+  // Participants
+  attendees?: string[];
+  organizer?: string;
+  
+  // Integration
+  source: 'google_calendar' | 'manual';
+  googleEventId?: string;
+  meetingMinutesId?: string; // Link to meeting minutes
+  calendarEventId?: string; // For meeting minutes linking back
+  
+  // Status
+  status?: string;
+  htmlLink?: string;
+  
+  // Timestamps
+  createdAt: Date;
+  updatedAt?: Date;
+  syncedAt?: Date;
 }
 
 // Helper type for creating contacts with minimal required fields
