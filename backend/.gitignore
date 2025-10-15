@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Firebase
+service-account-key.json
+jarvis-management-firebase-adminsdk-fbsvc-b7658895ca.json
+firebase-debug.log
+
+#Google OAuth
+client_secret_424373030753-gp9hc6lap9g4grjf6t9dfiok05b6fkio.apps.googleusercontent.com.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/

@@ -1,0 +1,48 @@
+# Dependencies
+backend/node_modules/
+backend/package-lock.json
+
+# Environment
+backend/.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# Build
+backend/dist/
+backend/build/
+
+# Logs
+backend/*.log
+backend/npm-debug.log*
+backend/logs/
+
+# Firebase - Backend
+backend/service-account-key.json
+backend/jarvis-management-firebase-adminsdk-fbsvc-b7658895ca.json
+backend/firebase-debug.log
+backend/serviceAccountKey.json
+
+# Google OAuth - Backend
+backend/client_secret_*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+backend/.vscode/
+backend/.idea/
+backend/*.swp
+backend/*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+backend/coverage/
+backend/.nyc_output/
