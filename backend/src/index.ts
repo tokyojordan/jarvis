@@ -2,9 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
+import { join } from 'path';
 
-import swaggerUi from 'swagger-ui-express';
-import { swaggerSpec } from './config/swagger';
+import swaggerUi from 'swagger-ui-express'; //import { swaggerSpec } from './config/swagger';
+import fs from 'fs';
+import yaml from 'js-yaml';
 
 // Import routes
 import meetingsRoutes from './routes/meetings';
@@ -15,6 +17,7 @@ import integrationRoutes from './routes/integration';
 import integrationsRoutes from './routes/integration';
 import reportsRoutes from './routes/reports';
 import googleAuthRoutes from './routes/googleAuth';
+import projectManagementRoutes from './routes/projectManagement';
 
 dotenv.config();
 
@@ -43,6 +46,16 @@ app.use('/api/integration', integrationRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/integration/oauth', googleAuthRoutes);
+app.use('/api', projectManagementRoutes);
+
+// Load and parse the YAML file with proper typing
+const swaggerFile = fs.readFileSync(join(__dirname, './swagger-complete.yaml'), 'utf8');
+const swaggerSpec = yaml.load(swaggerFile) as swaggerUi.JsonObject;
+
+// Or with options
+app.use('/api-swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true
+}));
 
 // Health check
 app.get('/health', (_req, res) => {

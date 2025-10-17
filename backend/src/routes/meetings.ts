@@ -1,21 +1,26 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { processMeetingRecording } from '../services/meetingIntelligence';
+import { processAudioInBackground } from '../services/backgroundProcessor';
 import { generateMeetingPDF, emailMeetingMinutes } from '../services/n8nIntegration';
 import { db } from '../services/firebase';
 
 const router = Router();
+
+// Configure multer for large files
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max
+  limits: { 
+    fileSize: 500 * 1024 * 1024, // 500MB max
+    fieldSize: 500 * 1024 * 1024,
+  },
 });
 
 /**
  * @swagger
  * /api/meetings/upload:
  *   post:
- *     summary: Upload and process meeting audio
- *     description: Upload an audio file to transcribe and analyze using OpenAI Whisper and GPT-4. Includes automatic duplicate detection.
+ *     summary: Upload and process meeting audio (async)
+ *     description: Upload an audio file for background processing. Returns immediately with a job ID. Use /status endpoint to check progress.
  *     tags: [Meetings]
  *     security:
  *       - UserAuth: []
@@ -35,13 +40,13 @@ const upload = multer({
  *                 description: Optional meeting title
  *               projectId:
  *                 type: string
- *                 description: Optional project ID to associate with
+ *                 description: Optional project ID
  *               attendeeIds:
  *                 type: string
- *                 description: JSON array of attendee contact IDs
+ *                 description: JSON array of attendee IDs
  *     responses:
- *       200:
- *         description: Meeting processed successfully
+ *       202:
+ *         description: Upload accepted, processing in background
  *         content:
  *           application/json:
  *             schema:
@@ -49,26 +54,17 @@ const upload = multer({
  *               properties:
  *                 success:
  *                   type: boolean
- *                 meetingMinutesId:
+ *                 jobId:
  *                   type: string
  *                 message:
  *                   type: string
- *                 filename:
+ *                 status:
  *                   type: string
- *       409:
- *         description: Duplicate file detected
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Duplicate file
- *                 message:
- *                   type: string
- *                 details:
- *                   type: string
+ *                   enum: [processing]
+ *                 estimatedTimeSeconds:
+ *                   type: integer
+ *       400:
+ *         description: Bad request
  *       401:
  *         description: Unauthorized
  *       500:
@@ -86,45 +82,208 @@ router.post('/upload', upload.single('audio'), async (req, res) => {
     }
 
     const { title, projectId, attendeeIds } = req.body;
+    const audioFile = req.file;
 
-    console.log(`🎙️ Processing meeting recording for user ${userId}`);
-    console.log(`   📄 Filename: ${req.file.originalname}`);
-    console.log(`   📦 Size: ${(req.file.size / (1024 * 1024)).toFixed(2)} MB`);
+    console.log(`🎙️ Received audio upload from user ${userId}`);
+    console.log(`   📄 Filename: ${audioFile.originalname}`);
+    console.log(`   📦 Size: ${(audioFile.size / (1024 * 1024)).toFixed(2)} MB`);
+
+    // Generate unique job ID
+    const jobId = `job-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     
-    const meetingMinutesId = await processMeetingRecording(
-      req.file.buffer,
+    // Estimate processing time (rough: 5 seconds per MB)
+    const estimatedTimeSeconds = Math.ceil(audioFile.size / (1024 * 1024) * 5);
+
+    // Start background processing (don't await!)
+    processAudioInBackground(
+      jobId,
+      audioFile.buffer,
       userId,
       {
+        filename: audioFile.originalname,
+        size: audioFile.size,
         title,
         projectId,
         attendeeIds: attendeeIds ? JSON.parse(attendeeIds) : [],
-        filename: req.file.originalname,
       }
-    );
+    ).catch(err => {
+      // Log error but don't crash server
+      console.error(`❌ Background processing error for job ${jobId}:`, err);
+    });
 
-    return res.json({
+    // Return immediately with 202 Accepted
+    return res.status(202).json({
       success: true,
-      meetingMinutesId,
-      message: 'Meeting processed successfully',
-      filename: req.file.originalname,
+      jobId,
+      message: 'Audio upload received. Processing in background.',
+      status: 'processing',
+      estimatedTimeSeconds,
+      filename: audioFile.originalname,
     });
 
   } catch (error: any) {
     console.error('Meeting upload error:', error);
-    
-    // Check if it's a duplicate file error
-    if (error.message.includes('already been processed')) {
-      return res.status(409).json({ 
-        error: 'Duplicate file',
-        message: error.message,
-        details: 'This recording has already been uploaded and processed.'
-      });
-    }
-    
     return res.status(500).json({ 
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+/**
+ * @swagger
+ * /api/meetings/status/{jobId}:
+ *   get:
+ *     summary: Check processing status
+ *     description: Check the status of a background processing job
+ *     tags: [Meetings]
+ *     security:
+ *       - UserAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID returned from upload
+ *     responses:
+ *       200:
+ *         description: Job status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 jobId:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                   enum: [processing, completed, failed]
+ *                 progress:
+ *                   type: integer
+ *                   minimum: 0
+ *                   maximum: 100
+ *                 meetingId:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 completedAt:
+ *                   type: string
+ *                   format: date-time
+ *       404:
+ *         description: Job not found
+ *       403:
+ *         description: Forbidden
+ */
+router.get('/status/:jobId', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'] as string;
+    const { jobId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get job from Firestore
+    const jobDoc = await db.collection('processing_jobs').doc(jobId).get();
+    
+    if (!jobDoc.exists) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const job = jobDoc.data();
+    
+    // Verify ownership
+    if (job?.userId !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    return res.json({
+      jobId: job.jobId,
+      status: job.status,
+      progress: job.progress,
+      meetingId: job.meetingId,
+      error: job.error,
+      filename: job.filename,
+      fileSize: job.fileSize,
+      retryAttempt: job.retryAttempt,
+      createdAt: job.createdAt,
+      completedAt: job.completedAt,
+    });
+
+  } catch (error: any) {
+    console.error('Status check error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/meetings/retry/{jobId}:
+ *   post:
+ *     summary: Retry failed job
+ *     description: Retry processing a failed job (requires local storage implementation)
+ *     tags: [Meetings]
+ *     security:
+ *       - UserAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Failed job ID
+ *     responses:
+ *       200:
+ *         description: Retry initiated
+ *       404:
+ *         description: Job not found
+ *       400:
+ *         description: Job cannot be retried
+ *       501:
+ *         description: Feature not implemented
+ */
+router.post('/retry/:jobId', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'] as string;
+    const { jobId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const jobDoc = await db.collection('processing_jobs').doc(jobId).get();
+    
+    if (!jobDoc.exists) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const job = jobDoc.data();
+    
+    if (job?.userId !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (!job.canRetry) {
+      return res.status(400).json({ 
+        error: 'Job cannot be retried. Local file may not be available.' 
+      });
+    }
+
+    // Note: This requires implementing local storage service
+    // For now, return 501 Not Implemented
+    return res.status(501).json({ 
+      error: 'Retry feature requires local storage implementation',
+      message: 'Please re-upload the audio file to retry processing',
+      jobId: jobId
+    });
+
+  } catch (error: any) {
+    console.error('Retry error:', error);
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -147,19 +306,6 @@ router.post('/upload', upload.single('audio'), async (req, res) => {
  *     responses:
  *       200:
  *         description: List of meetings
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 meetings:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Meeting'
- *                 count:
- *                   type: integer
- *       401:
- *         description: Unauthorized
  */
 router.get('/', async (req, res) => {
   try {
@@ -168,11 +314,13 @@ router.get('/', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const limit = parseInt(req.query.limit as string) || 50;
+
     const snapshot = await db
       .collection('meeting_minutes')
       .where('userId', '==', userId)
-      .orderBy('date', 'desc')
-      .limit(50)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
       .get();
 
     const meetings = snapshot.docs.map(doc => ({
@@ -206,13 +354,6 @@ router.get('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Meeting details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 meeting:
- *                   $ref: '#/components/schemas/Meeting'
  *       404:
  *         description: Meeting not found
  *       403:
@@ -232,7 +373,6 @@ router.get('/:id', async (req, res) => {
     const meetingData = doc.data();
     const meeting = { id: doc.id, ...meetingData };
     
-    // Check ownership 
     if (meetingData?.userId !== userId) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -262,24 +402,10 @@ router.get('/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: PDF generated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 pdfUrl:
- *                   type: string
- *       500:
- *         description: Server error
  */
 router.post('/:id/generate-pdf', async (req, res) => {
   try {
     const { id } = req.params;
-
     console.log(`📄 Generating PDF for meeting ${id}`);
     const result = await generateMeetingPDF(id);
     
@@ -313,13 +439,10 @@ router.post('/:id/generate-pdf', async (req, res) => {
  *     responses:
  *       200:
  *         description: Email sent successfully
- *       500:
- *         description: Server error
  */
 router.post('/:id/email', async (req, res) => {
   try {
     const { id } = req.params;
-
     console.log(`📧 Emailing meeting minutes for ${id}`);
     await emailMeetingMinutes(id);
     

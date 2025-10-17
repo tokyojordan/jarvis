@@ -1,0 +1,1616 @@
+openapi: 3.0.0
+info:
+  title: Jarvis Meeting Assistant API
+  description: Complete API for meeting transcription, contact management, calendar sync, and automation
+  version: 1.0.0
+  contact:
+    name: Jarvis Support
+    email: support@jarvis.com
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+  - url: https://your-production-url.com/api
+    description: Production server
+
+security:
+  - UserAuth: []
+
+components:
+  securitySchemes:
+    UserAuth:
+      type: apiKey
+      in: header
+      name: x-user-id
+      description: User ID for authentication
+
+  schemas:
+    Organization:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Workspace:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Team:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        workspaceId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        memberIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    PortfolioStatus:
+      type: object
+      properties:
+        completionPercentage: { type: number, format: float }
+        totalTasks: { type: integer }
+        completedTasks: { type: integer }
+        projects:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              completionPercentage: { type: number, format: float }
+
+    Portfolio:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        workspaceId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        projectIds:
+          type: array
+          items: { type: string }
+        status:
+          $ref: '#/components/schemas/PortfolioStatus'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Project:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        portfolioId: { type: string }
+        teamId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        status:
+          type: string
+          enum: [not_started, in_progress, completed]
+        completionPercentage: { type: number, format: float }
+        sectionIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Section:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        projectId: { type: string }
+        name: { type: string }
+        taskIds:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Subtask:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status:
+          type: string
+          enum: [not_started, in_progress, completed]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Task:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        sectionId: { type: string }
+        projectId: { type: string }
+        title: { type: string }
+        description: { type: string }
+        assigneeId: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        customFields:
+          type: object
+          additionalProperties: { type: string }
+        subtasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subtask'
+        dependencies:
+          type: array
+          items: { type: string }
+        status:
+          type: string
+          enum: [not_started, in_progress, completed]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    Meeting:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        title:
+          type: string
+        date:
+          type: string
+        duration:
+          type: string
+        transcript:
+          type: string
+        summary:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+        decisions:
+          type: array
+          items:
+            type: string
+        actionItems:
+          type: array
+          items:
+            type: object
+        originalFilename:
+          type: string
+        fileHash:
+          type: string
+        fileSizeMB:
+          type: string
+
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        names:
+          type: array
+          items:
+            type: object
+            properties:
+              givenName:
+                type: string
+              familyName:
+                type: string
+              displayName:
+                type: string
+        emailAddresses:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+              type:
+                type: string
+                enum: [home, work, other]
+        phoneNumbers:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+              type:
+                type: string
+        addresses:
+          type: array
+          items:
+            type: object
+        organizations:
+          type: array
+          items:
+            type: object
+
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        summary:
+          type: string
+        start:
+          type: string
+        end:
+          type: string
+        attendees:
+          type: array
+          items:
+            type: string
+
+    ProcessingJob:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [processing, completed, failed]
+        progress:
+          type: integer
+        meetingId:
+          type: string
+        error:
+          type: string
+
+paths:
+  # ==================== MEETINGS ====================
+  /meetings/upload:
+    post:
+      summary: Upload and process meeting audio
+      description: Upload audio file with optional metadata. Returns job ID for status tracking.
+      tags: [Meetings]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio file (m4a, mp3, wav, webm)
+                title:
+                  type: string
+                  description: Meeting title
+                  example: "Q4 Planning Meeting"
+                projectId:
+                  type: string
+                  description: Project ID
+                  example: "proj-123"
+                attendeeIds:
+                  type: string
+                  description: JSON array of contact IDs
+                  example: '["contact-1", "contact-2"]'
+      responses:
+        '202':
+          description: Upload accepted, processing in background
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  jobId:
+                    type: string
+                  status:
+                    type: string
+                  estimatedTimeSeconds:
+                    type: integer
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+
+  /meetings/status/{jobId}:
+    get:
+      summary: Check processing job status
+      tags: [Meetings]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Job ID from upload response
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingJob'
+
+  /meetings:
+    get:
+      summary: Get all meetings
+      tags: [Meetings]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of meetings
+      responses:
+        '200':
+          description: List of meetings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meetings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Meeting'
+                  count:
+                    type: integer
+
+  /meetings/{id}:
+    get:
+      summary: Get specific meeting
+      tags: [Meetings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Meeting details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meeting:
+                    $ref: '#/components/schemas/Meeting'
+    delete:
+      summary: Delete meeting
+      tags: [Meetings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Meeting deleted
+
+  /meetings/{id}/generate-pdf:
+    post:
+      summary: Generate PDF for meeting
+      tags: [Meetings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  pdfUrl:
+                    type: string
+
+  /meetings/{id}/email:
+    post:
+      summary: Email meeting minutes
+      tags: [Meetings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email sent
+
+  /meetings/retry/{jobId}:
+    post:
+      summary: Retry failed job
+      tags: [Meetings]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retry initiated
+        '501':
+          description: Feature not implemented
+
+  # ==================== CONTACTS ====================
+  /contacts:
+    get:
+      summary: Get all contacts
+      tags: [Contacts]
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search query
+        - name: hasEmail
+          in: query
+          schema:
+            type: boolean
+          description: Filter contacts with email
+      responses:
+        '200':
+          description: List of contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contact'
+    post:
+      summary: Create new contact
+      tags: [Contacts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                names:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      givenName:
+                        type: string
+                      familyName:
+                        type: string
+                emailAddresses:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      value:
+                        type: string
+                      type:
+                        type: string
+                        enum: [home, work, other]
+                phoneNumbers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      value:
+                        type: string
+                      type:
+                        type: string
+                        enum: [mobile, home, work]
+                addresses:
+                  type: array
+                  items:
+                    type: object
+                organizations:
+                  type: array
+                  items:
+                    type: object
+            example:
+              names:
+                - givenName: "John"
+                  familyName: "Doe"
+              emailAddresses:
+                - value: "john@example.com"
+                  type: "work"
+              phoneNumbers:
+                - value: "+1-555-1234"
+                  type: "mobile"
+      responses:
+        '201':
+          description: Contact created
+
+  /contacts/{id}:
+    get:
+      summary: Get specific contact
+      tags: [Contacts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Contact details
+    patch:
+      summary: Update contact
+      tags: [Contacts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                names:
+                  type: array
+                emailAddresses:
+                  type: array
+                phoneNumbers:
+                  type: array
+                syncToGoogle:
+                  type: boolean
+                  description: Sync changes to Google Contacts
+            example:
+              emailAddresses:
+                - value: "newemail@example.com"
+                  type: "work"
+              syncToGoogle: true
+      responses:
+        '200':
+          description: Contact updated
+    delete:
+      summary: Delete contact
+      tags: [Contacts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Contact deleted
+
+  /contacts/sync/google:
+    post:
+      summary: Sync Google Contacts
+      description: Import all contacts from Google Contacts
+      tags: [Contacts]
+      responses:
+        '200':
+          description: Contacts synced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  message:
+                    type: string
+
+  /contacts/{id}/sync-to-google:
+    post:
+      summary: Sync contact to Google
+      description: Push a specific contact to Google Contacts
+      tags: [Contacts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Contact synced to Google
+
+  # ==================== BUSINESS CARDS ====================
+  /business-card/scan:
+    post:
+      summary: Scan business card
+      description: OCR business card image and extract contact info
+      tags: [Business Cards]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Business card image (jpg, png)
+                autoSaveContact:
+                  type: boolean
+                  description: Automatically save as contact
+                  default: true
+      responses:
+        '200':
+          description: Business card scanned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  contact:
+                    $ref: '#/components/schemas/Contact'
+
+  /business-card/history:
+    get:
+      summary: Get scan history
+      tags: [Business Cards]
+      responses:
+        '200':
+          description: List of scanned business cards
+
+  # ==================== CALENDAR ====================
+  /calendar/events:
+    get:
+      summary: Get all calendar events
+      tags: [Calendar]
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CalendarEvent'
+
+  /calendar/events/upcoming:
+    get:
+      summary: Get upcoming events
+      tags: [Calendar]
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        '200':
+          description: Upcoming events
+
+  /calendar/sync/google:
+    post:
+      summary: Sync Google Calendar
+      tags: [Calendar]
+      responses:
+        '200':
+          description: Calendar synced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+
+  # ==================== PROJECT MANAGEMENT ======================
+  /organizations:
+    get:
+      summary: List organizations
+      tags: [Project Management]
+      responses:
+        '200':
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+    post:
+      summary: Create organization
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /organizations/{id}:
+    get:
+      summary: Get organization
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Organization
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Organization'
+        '404':
+          description: Not found
+    patch:
+      summary: Update organization
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete organization
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  /workspaces:
+    get:
+      summary: List workspaces
+      tags: [Project Management]
+      parameters:
+        - in: query
+          name: organizationId
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+    post:
+      summary: Create workspace
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationId, name]
+              properties:
+                organizationId: { type: string }
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '201':
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /workspaces/{id}:
+    get:
+      summary: Get workspace
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Workspace'
+        '404':
+          description: Not found
+    patch:
+      summary: Update workspace
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete workspace
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  /teams:
+    get:
+      summary: List teams
+      tags: [Project Management]
+      parameters:
+        - in: query
+          name: workspaceId
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Team'
+    post:
+      summary: Create team
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspaceId, name]
+              properties:
+                workspaceId: { type: string }
+                name: { type: string }
+                description: { type: string }
+                memberIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201':
+          description: Team created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /teams/{id}:
+    get:
+      summary: Get team
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Team
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Team'
+        '404':
+          description: Not found
+    patch:
+      summary: Update team
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                memberIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete team
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  /portfolios:
+    get:
+      summary: List portfolios
+      tags: [Project Management]
+      parameters:
+        - in: query
+          name: workspaceId
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of portfolios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Portfolio'
+    post:
+      summary: Create portfolio
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspaceId, name]
+              properties:
+                workspaceId: { type: string }
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '201':
+          description: Portfolio created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /portfolios/{id}:
+    get:
+      summary: Get portfolio
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Portfolio
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Portfolio'
+        '404':
+          description: Not found
+    patch:
+      summary: Update portfolio
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                projectIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete portfolio
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  /portfolios/{id}/rollup:
+    post:
+      summary: Calculate and store portfolio roll-up status
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Roll-up calculated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  status:
+                    $ref: '#/components/schemas/PortfolioStatus'
+
+  /projects:
+    get:
+      summary: List projects
+      tags: [Project Management]
+      parameters:
+        - in: query
+          name: portfolioId
+          schema: { type: string }
+        - in: query
+          name: teamId
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+    post:
+      summary: Create project
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [portfolioId, name]
+              properties:
+                portfolioId: { type: string }
+                teamId: { type: string }
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /projects/{id}:
+    get:
+      summary: Get project
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Project'
+        '404':
+          description: Not found
+    patch:
+      summary: Update project
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                status:
+                  type: string
+                  enum: [not_started, in_progress, completed]
+                completionPercentage: { type: number, format: float }
+                sectionIds:
+                  type: array
+                  items: { type: string }
+                teamId: { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete project
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  /sections:
+    get:
+      summary: List sections
+      tags: [Project Management]
+      parameters:
+        - in: query
+          name: projectId
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of sections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Section'
+    post:
+      summary: Create section
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, name]
+              properties:
+                projectId: { type: string }
+                name: { type: string }
+      responses:
+        '201':
+          description: Section created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /sections/{id}:
+    get:
+      summary: Get section
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Section
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Section'
+        '404':
+          description: Not found
+    patch:
+      summary: Update section
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                taskIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete section
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  /tasks:
+    get:
+      summary: List tasks
+      tags: [Project Management]
+      parameters:
+        - in: query
+          name: projectId
+          schema: { type: string }
+        - in: query
+          name: sectionId
+          schema: { type: string }
+        - in: query
+          name: assigneeId
+          schema: { type: string }
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [not_started, in_progress, completed]
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+    post:
+      summary: Create task
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sectionId, projectId, title]
+              properties:
+                sectionId: { type: string }
+                projectId: { type: string }
+                title: { type: string }
+                description: { type: string }
+                assigneeId: { type: string }
+                tags:
+                  type: array
+                  items: { type: string }
+                customFields:
+                  type: object
+                  additionalProperties: { type: string }
+                subtasks:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      title: { type: string }
+                      status:
+                        type: string
+                        enum: [not_started, in_progress, completed]
+                dependencies:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /tasks/{id}:
+    get:
+      summary: Get task
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Task'
+        '404':
+          description: Not found
+    patch:
+      summary: Update task
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                assigneeId: { type: string }
+                tags:
+                  type: array
+                  items: { type: string }
+                customFields:
+                  type: object
+                  additionalProperties: { type: string }
+                subtasks:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Subtask'
+                dependencies:
+                  type: array
+                  items: { type: string }
+                status:
+                  type: string
+                  enum: [not_started, in_progress, completed]
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete task
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  # ==================== REPORTS ====================
+  /reports/weekly:
+    post:
+      summary: Generate weekly report
+      tags: [Reports]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: Email to send report to
+            example:
+              email: "user@example.com"
+      responses:
+        '200':
+          description: Report generated
+
+  /reports/project-status/{projectId}:
+    post:
+      summary: Generate project status report
+      tags: [Reports]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report generated
+
+  /reports/task-digest:
+    post:
+      summary: Generate daily task digest
+      tags: [Reports]
+      responses:
+        '200':
+          description: Digest generated
+
+  # ==================== INTEGRATION ====================
+  /integration/status:
+    get:
+      summary: Check integration status
+      tags: [Integration]
+      responses:
+        '200':
+          description: Integration status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  google:
+                    type: object
+                  n8n:
+                    type: object
+
+  /integration/sync-all:
+    post:
+      summary: Sync all integrations
+      tags: [Integration]
+      responses:
+        '200':
+          description: All integrations synced
+
+  /integration/oauth/google:
+    post:
+      summary: Save Google OAuth tokens
+      tags: [Integration]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accessToken:
+                  type: string
+                refreshToken:
+                  type: string
+                expiryDate:
+                  type: integer
+      responses:
+        '200':
+          description: Tokens saved
+
+tags:
+  - name: Meetings
+    description: Meeting transcription and management
+  - name: Contacts
+    description: Contact management with Google Contacts sync
+  - name: Business Cards
+    description: Business card OCR and scanning
+  - name: Calendar
+    description: Calendar events and Google Calendar sync
+  - name: Project Management
+    description: Manage organization, workspaces, teams, portfolios, projects, sections, and tasks
+  - name: Reports
+    description: Automated reports and digests
+  - name: Integration
+    description: Integration management and OAuth
