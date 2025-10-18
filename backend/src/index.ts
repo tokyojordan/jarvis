@@ -2,11 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
-import { join } from 'path';
 
-import swaggerUi from 'swagger-ui-express'; //import { swaggerSpec } from './config/swagger';
-import fs from 'fs';
-import yaml from 'js-yaml';
+import swaggerUi from 'swagger-ui-express'; 
+import { swaggerSpec } from './config/swagger';
 
 // Import routes
 import meetingsRoutes from './routes/meetings';
@@ -17,7 +15,15 @@ import integrationRoutes from './routes/integration';
 import integrationsRoutes from './routes/integration';
 import reportsRoutes from './routes/reports';
 import googleAuthRoutes from './routes/googleAuth';
-import projectManagementRoutes from './routes/projectManagement';
+
+//Project Management routes
+import organizationRoutes from './routes/organization';
+import workspaceRoutes from './routes/workspace';
+import teamRoutes from './routes/team';
+import portfolioRoutes from './routes/portfolio';
+import projectRoutes from './routes/project';
+import sectionRoutes from './routes/section';
+import taskRoutes from './routes/task';
 
 dotenv.config();
 
@@ -38,6 +44,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+// ... all your existing code ...
+
+// Routes - KEEP ALL YOUR EXISTING ROUTES
 app.use('/api/meetings', meetingsRoutes);
 app.use('/api/contacts', contactsRoutes);
 app.use('/api/calendar', calendarRoutes);
@@ -46,15 +55,24 @@ app.use('/api/integration', integrationRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/integration/oauth', googleAuthRoutes);
-app.use('/api', projectManagementRoutes);
 
-// Load and parse the YAML file with proper typing
-const swaggerFile = fs.readFileSync(join(__dirname, './swagger-complete.yaml'), 'utf8');
-const swaggerSpec = yaml.load(swaggerFile) as swaggerUi.JsonObject;
+// Project Management routes - these should come BEFORE the 404 handler
+app.use('/api', organizationRoutes);
+app.use('/api', workspaceRoutes);
+app.use('/api', teamRoutes);
+app.use('/api', portfolioRoutes);
+app.use('/api', projectRoutes);
+app.use('/api', sectionRoutes);
+app.use('/api', taskRoutes);
 
-// Or with options
+// Swagger documentation
 app.use('/api-swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true
+}));
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Jarvis API Documentation',
 }));
 
 // Health check
@@ -65,12 +83,6 @@ app.get('/health', (_req, res) => {
     service: 'jarvis-backend'
   });
 });
-
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Jarvis API Documentation',
-}));
 
 // Root endpoint
 app.get('/', (_req, res) => {
@@ -85,17 +97,24 @@ app.get('/', (_req, res) => {
       calendar: '/api/calendar',
       businessCard: '/api/business-card',
       integration: '/api/integration',
-      reports: '/api/reports'
+      reports: '/api/reports',
+      organizations: '/api/organizations',  // ADD THESE
+      workspaces: '/api/workspaces',
+      teams: '/api/teams',
+      portfolios: '/api/portfolios',
+      projects: '/api/projects',
+      sections: '/api/sections',
+      tasks: '/api/tasks',
     }
   });
 });
 
-// 404 handler
+// 404 handler - MUST COME AFTER ALL ROUTES
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Error handler
+// Error handler - MUST COME LAST
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Error:', err);
   res.status(500).json({ 
@@ -108,6 +127,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 app.listen(PORT, () => {
   console.log(`🚀 Jarvis backend running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`📚 API docs: http://localhost:${PORT}/api-docs`);
 });
 
 export default app;

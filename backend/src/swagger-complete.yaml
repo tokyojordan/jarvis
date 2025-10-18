@@ -126,7 +126,11 @@ components:
       type: object
       properties:
         id: { type: string }
+        userId: { type: string }
+        taskId: { type: string }
         title: { type: string }
+        description: { type: string }
+        order: { type: integer }
         status:
           type: string
           enum: [not_started, in_progress, completed]
@@ -149,10 +153,6 @@ components:
         customFields:
           type: object
           additionalProperties: { type: string }
-        subtasks:
-          type: array
-          items:
-            $ref: '#/components/schemas/Subtask'
         dependencies:
           type: array
           items: { type: string }
@@ -1418,15 +1418,6 @@ paths:
                 customFields:
                   type: object
                   additionalProperties: { type: string }
-                subtasks:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      title: { type: string }
-                      status:
-                        type: string
-                        enum: [not_started, in_progress, completed]
                 dependencies:
                   type: array
                   items: { type: string }
@@ -1485,10 +1476,6 @@ paths:
                 customFields:
                   type: object
                   additionalProperties: { type: string }
-                subtasks:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Subtask'
                 dependencies:
                   type: array
                   items: { type: string }
@@ -1500,6 +1487,112 @@ paths:
           description: Updated
     delete:
       summary: Delete task
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+
+  # ==================== SUBTASKS ====================
+  /subtasks:
+    get:
+      summary: List subtasks
+      tags: [Project Management]
+      parameters:
+        - in: query
+          name: taskId
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of subtasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subtask'
+    post:
+      summary: Create subtask
+      tags: [Project Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [taskId, title]
+              properties:
+                taskId: { type: string }
+                title: { type: string }
+                description: { type: string }
+                order: { type: integer }
+                status:
+                  type: string
+                  enum: [not_started, in_progress, completed]
+      responses:
+        '201':
+          description: Subtask created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: string }
+
+  /subtasks/{id}:
+    get:
+      summary: Get subtask
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Subtask
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: '#/components/schemas/Subtask'
+        '404':
+          description: Not found
+    patch:
+      summary: Update subtask
+      tags: [Project Management]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+                order: { type: integer }
+                status:
+                  type: string
+                  enum: [not_started, in_progress, completed]
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete subtask
       tags: [Project Management]
       parameters:
         - in: path
@@ -1609,7 +1702,7 @@ tags:
   - name: Calendar
     description: Calendar events and Google Calendar sync
   - name: Project Management
-    description: Manage organization, workspaces, teams, portfolios, projects, sections, and tasks
+    description: Manage organization, workspaces, teams, portfolios, projects, sections, tasks, and subtasks
   - name: Reports
     description: Automated reports and digests
   - name: Integration

@@ -1,8 +1,7 @@
-// frontend/src/App.tsx
-import JarvisTestUI from './pages/test-ui'
+import MeetingApp from './components/meetings/MeetingApp';
 
 function App() {
-  return <JarvisTestUI />
+  return <MeetingApp />;
 }
 
-export default App
+export default App;
