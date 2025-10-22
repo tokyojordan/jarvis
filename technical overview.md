@@ -298,7 +298,8 @@ interface Portfolio {
   workspaceId: string;
   name: string;
   description?: string;
-  projectIds: string[];
+  // NOTE: Do NOT store projectIds here
+  // Projects store portfolioIds: string[] instead (child knows parent)
   status: PortfolioStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -307,23 +308,15 @@ interface Portfolio {
 Project
 interface Project {
   id: string;
-  portfolioId: string;
+  portfolioIds: string[];  // ✅ SOURCE OF TRUTH - array for many-to-many
+  workspaceId: string;
   teamId?: string;
   name: string;
   description?: string;
   status: 'not_started' | 'in_progress' | 'completed';
   completionPercentage: number;
-  sectionIds: string[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-Section
-interface Section {
-  id: string;
-  projectId: string;
-  name: string;
-  taskIds: string[];
+  // NOTE: Do NOT store taskIds here
+  // Tasks store projectIds: string[] instead (child knows parent)
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -331,15 +324,15 @@ interface Section {
 Task
 interface Task {
   id: string;
-  sectionId: string;
-  projectId: string;
+  projectIds: string[];  // ✅ SOURCE OF TRUTH - array for many-to-many
+  userId: string;
   title: string;
   description?: string;
   assigneeId?: string;
   tags?: string[];
   customFields?: { [key: string]: string };
   subtasks?: Subtask[];
-  dependencies?: string[];
+  dependencies?: string[];  // Array of task IDs this task depends on
   status: 'not_started' | 'in_progress' | 'completed';
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -545,59 +538,107 @@ if (batchCount > 0) {
 
 
 Project Management
-Hierarchy Overview
+Hierarchy Overview (Child Knows Parent)
 Organization
   └── Workspace
       ├── Team (Optional)
-      │   └── Project
-      │       ├── Section
-      │       │   └── Task
-      │       │       ├── Subtask
-      │       │       ├── Assignee
-      │       │       ├── Tags
-      │       │       └── Custom Fields
       └── Portfolio
-          ├── Project
-          └── Project
+          └── (query: projects where portfolioIds contains this ID)
+              └── Projects (many-to-many via portfolioIds: string[])
+                  └── (query: tasks where projectIds contains this ID)
+                      └── Tasks (many-to-many via projectIds: string[])
+                          ├── Subtask
+                          ├── Assignee (userId reference)
+                          ├── Tags (string[])
+                          ├── Custom Fields ({ key: value })
+                          └── Dependencies (string[] of task IDs)
 
 Workflow
 
-Create Organization: Set up the root account for the user/company
-Create Workspace: Define a workspace (e.g., "Engineering Workspace")
-Create Teams (Optional): Group projects under teams
-Create Portfolios: Aggregate projects for high-level reporting
-Create Projects: Define initiatives with sections and tasks
-Manage Tasks: Assign tasks, set dependencies, add tags, and track status
-Roll-up Status: Calculate completion percentages for projects and portfolios
-Integrate with Meetings: Link meetings to projects/tasks for context
+1. Create Organization: Set up the root account for the user/company
+2. Create Workspace: Define a workspace (e.g., "Engineering Workspace")
+3. Create Teams (Optional): Group projects under teams
+4. Create Portfolios: Aggregate projects for high-level reporting
+5. Create Projects: Define initiatives with portfolioIds: string[] array (many-to-many)
+6. Manage Tasks: Assign tasks to multiple projects via projectIds: string[] array
+7. Roll-up Status: Calculate completion percentages for projects and portfolios via queries
+8. Integrate with Meetings: Link meetings to projects/tasks for context
 
 Key Features
 
-Task Dependencies: Support for task-to-task dependencies within and across projects
+Task Dependencies: Support for task-to-task dependencies within and across projects via dependencies: string[]
 Custom Fields: Flexible metadata for tasks (e.g., Priority, Due Date)
 Tagging System: Organize tasks with searchable tags
-Status Tracking: Automated roll-up of task completion to project and portfolio levels
-Assignee Management: Link tasks to users or contacts
+Status Tracking: Automated roll-up of task completion to project and portfolio levels via aggregation queries
+Assignee Management: Link tasks to users or contacts via assigneeId
 n8n Integration: Automate task notifications and status updates
+Many-to-Many: Projects can belong to multiple portfolios, tasks can belong to multiple projects
 
 Implementation
-async function createTask(task: Partial<Task>, sectionId: string): Promise<string> {
+async function createTask(task: Partial<Task>): Promise<string> {
   const taskData: Task = {
     id: uuid(),
-    sectionId,
-    projectId: task.projectId!,
+    projectIds: task.projectIds || [],  // ✅ Array of project IDs
+    userId: task.userId!,
     title: task.title!,
     description: task.description,
     assigneeId: task.assigneeId,
     tags: task.tags || [],
     customFields: task.customFields || {},
     subtasks: task.subtasks || [],
-    dependencies: task.dependencies || [],
+    dependencies: task.dependencies || [],  // Array of task IDs
     status: task.status || 'not_started',
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   };
   
+  const ref = db.collection('tasks').doc(taskData.id);
+  await ref.set(taskData);
+  return taskData.id;
+}
+
+async function calculatePortfolioStatus(portfolioId: string): Promise<PortfolioStatus> {
+  // Query projects that belong to this portfolio
+  const projectsSnapshot = await db.collection('projects')
+    .where('portfolioIds', 'array-contains', portfolioId)
+    .get();
+  
+  let totalTasks = 0;
+  let completedTasks = 0;
+  const projectSummaries = [];
+  
+  for (const projectDoc of projectsSnapshot.docs) {
+    const project = projectDoc.data();
+    
+    // Query tasks that belong to this project
+    const tasksSnapshot = await db.collection('tasks')
+      .where('projectIds', 'array-contains', projectDoc.id)
+      .get();
+    
+    const projectTaskCount = tasksSnapshot.size;
+    const projectCompletedTasks = tasksSnapshot.docs.filter(
+      t => t.data().status === 'completed'
+    ).length;
+    
+    totalTasks += projectTaskCount;
+    completedTasks += projectCompletedTasks;
+    
+    projectSummaries.push({
+      id: projectDoc.id,
+      name: project.name,
+      completionPercentage: projectTaskCount > 0 
+        ? (projectCompletedTasks / projectTaskCount) * 100 
+        : 0,
+    });
+  }
+  
+  return {
+    completionPercentage: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
+    totalTasks,
+    completedTasks,
+    projects: projectSummaries,
+  };
+}
   const ref = db.collection('tasks').doc(taskData.id);
   await ref.set(taskData);
   return taskData.id;
@@ -636,6 +677,261 @@ async function calculatePortfolioStatus(portfolioId: string): Promise<PortfolioS
     completedTasks,
     projects: projectSummaries,
   };
+}
+
+
+UI Components
+Hierarchical Multi-Select Component
+
+For selecting projects, tasks, portfolios, and other hierarchical entities, Jarvis uses a modern, mobile-optimized multi-select component.
+
+Recommended Library: @mantine/core
+
+Installation:
+npm install @mantine/core @mantine/hooks
+
+Key Features:
+✅ Beautiful, modern design out of the box
+✅ Mobile-optimized with touch gestures  
+✅ Grouped display with hierarchy
+✅ Typeahead search across all levels
+✅ Hide selected options for cleaner UI
+✅ Scrollable dropdown for long lists
+✅ Built-in dark mode support
+✅ Excellent accessibility
+
+Implementation Example:
+import { MultiSelect } from '@mantine/core';
+import { useState, useEffect } from 'react';
+
+interface HierarchicalSelectProps {
+  userId: string;
+  type: 'projects' | 'tasks' | 'portfolios';
+  selectedIds?: string[];
+  onChange: (selectedIds: string[]) => void;
+  placeholder?: string;
+}
+
+export function HierarchicalSelect({
+  userId,
+  type,
+  selectedIds = [],
+  onChange,
+  placeholder = 'Select...'
+}: HierarchicalSelectProps) {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHierarchy();
+  }, [userId, type]);
+
+  const fetchHierarchy = async () => {
+    try {
+      const response = await fetch(
+        `/api/hierarchy?userId=${userId}&type=${type}`,
+        { headers: { 'x-user-id': userId } }
+      );
+      const hierarchyData = await response.json();
+      
+      // Transform to Mantine format with groups
+      const formatted = formatHierarchicalData(hierarchyData);
+      setData(formatted);
+    } catch (error) {
+      console.error('Failed to fetch hierarchy:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatHierarchicalData = (nodes, level = 0, parentLabel = '') => {
+    const result = [];
+    
+    nodes.forEach(node => {
+      const indent = '  '.repeat(level);
+      const prefix = level > 0 ? '└─ ' : '';
+      
+      result.push({
+        value: node.id,
+        label: `${indent}${prefix}${node.name}`,
+        group: level === 0 ? node.name : parentLabel,
+      });
+      
+      if (node.children && node.children.length > 0) {
+        result.push(
+          ...formatHierarchicalData(
+            node.children, 
+            level + 1, 
+            level === 0 ? node.name : parentLabel
+          )
+        );
+      }
+    });
+    
+    return result;
+  };
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <MultiSelect
+      data={data}
+      value={selectedIds}
+      onChange={onChange}
+      label={`Select ${type}`}
+      placeholder={placeholder}
+      searchable
+      hidePickedOptions  // ✅ Hide selected for cleaner UI
+      nothingFound="No matches found"
+      clearable
+      maxDropdownHeight={400}  // ✅ Scrollable
+      styles={{
+        value: {
+          background: '#4f46e5',
+          color: 'white',
+          borderRadius: '6px',
+          padding: '4px 8px',
+        },
+        dropdown: {
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        },
+        item: {
+          padding: '10px 12px',
+          fontSize: '14px',
+          '&[data-selected]': {
+            backgroundColor: '#eef2ff',
+            color: '#4f46e5',
+          },
+          '&[data-hovered]': {
+            backgroundColor: '#f5f3ff',
+          },
+        },
+      }}
+    />
+  );
+}
+
+Mobile Optimization:
+
+For Capacitor iOS/Android apps, add responsive behavior:
+
+import { useMediaQuery } from '@mantine/hooks';
+
+export function ResponsiveHierarchicalSelect(props: HierarchicalSelectProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
+  return (
+    <MultiSelect
+      {...props}
+      maxDropdownHeight={isMobile ? 300 : 400}
+      dropdownPosition={isMobile ? 'bottom' : 'flip'}
+      withinPortal={isMobile}  // Better mobile positioning
+      styles={{
+        dropdown: {
+          ...(isMobile && {
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            borderRadius: '16px 16px 0 0',
+            maxHeight: '70vh',
+          }),
+        },
+      }}
+    />
+  );
+}
+
+Usage Examples:
+
+// Select projects for a task (many-to-many)
+<HierarchicalSelect
+  userId={currentUser.id}
+  type="projects"
+  selectedIds={task.projectIds}
+  onChange={(projectIds) => updateTask({ projectIds })}
+  placeholder="Select projects for this task..."
+/>
+
+// Select portfolios for a project (many-to-many)
+<HierarchicalSelect
+  userId={currentUser.id}
+  type="portfolios"
+  selectedIds={project.portfolioIds}
+  onChange={(portfolioIds) => updateProject({ portfolioIds })}
+  placeholder="Select portfolios..."
+/>
+
+// Select tasks to link to a meeting
+<HierarchicalSelect
+  userId={currentUser.id}
+  type="tasks"
+  selectedIds={meeting.linkedTaskIds}
+  onChange={(taskIds) => updateMeeting({ linkedTaskIds: taskIds })}
+  placeholder="Link tasks to this meeting..."
+/>
+
+Alternative Options:
+
+1. shadcn/ui with Command Component
+   - More customizable
+   - Tailwind CSS based
+   - Great for custom branding
+
+2. Chakra UI with Custom Tree
+   - Excellent accessibility
+   - Theme-based styling
+   - Good mobile support
+
+3. react-checkbox-tree
+   - More traditional tree UI
+   - Good for complex hierarchies
+   - Desktop-focused
+
+Backend API Endpoint:
+
+The component expects a /api/hierarchy endpoint that returns:
+
+GET /api/hierarchy?userId={userId}&type={type}
+
+Response:
+{
+  "hierarchy": [
+    {
+      "id": "org-001",
+      "name": "Acme Corp",
+      "type": "organization",
+      "children": [
+        {
+          "id": "workspace-eng",
+          "name": "Engineering Workspace",
+          "type": "workspace",
+          "children": [
+            {
+              "id": "portfolio-q4",
+              "name": "Q4 Roadmap",
+              "type": "portfolio",
+              "children": [
+                {
+                  "id": "project-mobile",
+                  "name": "Mobile App Redesign",
+                  "type": "project",
+                  "children": [
+                    {
+                      "id": "task-001",
+                      "name": "Research competitors",
+                      "type": "task"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 
 

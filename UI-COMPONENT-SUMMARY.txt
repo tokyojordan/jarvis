@@ -1,0 +1,123 @@
+╔════════════════════════════════════════════════════════════════════╗
+║                                                                    ║
+║              JARVIS UI COMPONENTS - QUICK SUMMARY                  ║
+║                                                                    ║
+╚════════════════════════════════════════════════════════════════════╝
+
+🎨 HIERARCHICAL MULTI-SELECT COMPONENT
+
+Library: @mantine/core MultiSelect
+Installation: npm install @mantine/core @mantine/hooks
+
+
+✅ KEY FEATURES:
+
+   ✓ Hierarchical Display    - Visual indentation shows relationships
+   ✓ Grouped Options         - Top-level entities as groups
+   ✓ Typeahead Search        - Search across all levels
+   ✓ Hide Selected Options   - Cleaner UI (key feature!)
+   ✓ Scrollable Dropdown     - Max 400px height with scroll
+   ✓ Multi-Select Pills      - Beautiful selected value display
+   ✓ Mobile Optimized        - Bottom sheet on mobile
+   ✓ Dark Mode              - Built-in support
+   ✓ Accessibility          - ARIA labels, keyboard nav
+
+
+📊 VISUAL HIERARCHY IN DROPDOWN:
+
+   🏢 Acme Corp
+     📁 Engineering Workspace
+       📊 Q4 Roadmap
+         └─ 📋 Mobile App Redesign
+           └─ ✓ Research competitors    ← Task
+           └─ ✓ Design mockups          ← Task
+         └─ 📋 Bug Fixes
+       📊 Innovation Initiatives
+         └─ 📋 Mobile App Redesign      ← Same project, diff portfolio!
+
+
+🎯 USE CASES:
+
+   1. Task Form
+      - Select multiple projects for task
+      - Task.projectIds = ["proj-1", "proj-2"]
+
+   2. Project Form
+      - Select multiple portfolios for project
+      - Project.portfolioIds = ["portfolio-1", "portfolio-2"]
+
+   3. Meeting Form
+      - Link multiple tasks to meeting
+      - Meeting.linkedTaskIds = ["task-1", "task-2"]
+
+
+💻 COMPONENT FILE:
+   components/HierarchicalSelect.tsx         - Main component
+   components/ResponsiveHierarchicalSelect.tsx - Mobile version
+
+
+🔧 BACKEND API:
+   GET /api/hierarchy?userId={id}&type={type}
+   
+   Returns nested JSON:
+   {
+     "hierarchy": [
+       {
+         "id": "org-001",
+         "name": "Acme Corp",
+         "type": "organization",
+         "children": [ ... ]
+       }
+     ]
+   }
+
+
+📱 MOBILE BEHAVIOR:
+
+   Desktop:
+   - Standard dropdown (max 400px height)
+   - Scrollable list
+   
+   Mobile (< 768px):
+   - Bottom sheet animation
+   - 70vh max height
+   - Touch-optimized
+   - Fixed to bottom of screen
+
+
+🎨 STYLING:
+
+   - Primary color: Indigo (#4f46e5)
+   - Pills: White text on indigo background
+   - Hover: Light purple background
+   - Selected: Indigo highlight
+   - Border radius: 12px (modern)
+
+
+📚 FULL DOCUMENTATION:
+   See: ui-components-guide.md (20KB)
+
+
+🚀 QUICK START:
+
+   1. Install: npm install @mantine/core @mantine/hooks
+   
+   2. Setup provider in App.tsx:
+      <MantineProvider>
+        <App />
+      </MantineProvider>
+   
+   3. Use component:
+      <HierarchicalSelect
+        userId={user.id}
+        type="projects"
+        selectedIds={task.projectIds}
+        onChange={(ids) => setTask({ ...task, projectIds: ids })}
+      />
+
+
+╔════════════════════════════════════════════════════════════════════╗
+║                                                                    ║
+║         Beautiful + Functional + Mobile-Ready = Perfect!           ║
+║                                                                    ║
+╚════════════════════════════════════════════════════════════════════╝
