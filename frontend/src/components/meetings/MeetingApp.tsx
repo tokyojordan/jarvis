@@ -21,7 +21,7 @@ const MeetingApp: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -49,7 +49,7 @@ const MeetingApp: React.FC = () => {
 
   const fetchMeetings = async () => {
     if (!userId) return;
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/meetings`, {
         headers: { 'x-user-id': userId }
@@ -70,8 +70,12 @@ const MeetingApp: React.FC = () => {
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
+      // In your frontend recording code
       mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {  // Make sure data exists
+          audioChunksRef.current.push(event.data);
+          console.log(`Chunk size: ${event.data.size}`); // ADD THIS
+        }
       };
 
       mediaRecorder.onstop = async () => {
@@ -135,7 +139,7 @@ const MeetingApp: React.FC = () => {
 
       const data = await response.json();
       setSuccess(`Meeting "${data.filename}" processed successfully!`);
-      
+
       setTimeout(() => {
         fetchMeetings();
         setIsUploading(false);
@@ -160,7 +164,7 @@ const MeetingApp: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Failed to delete meeting');
-      
+
       setMeetings(meetings.filter(m => m.id !== meetingId));
       if (selectedMeeting?.id === meetingId) {
         setSelectedMeeting(null);
@@ -229,11 +233,10 @@ const MeetingApp: React.FC = () => {
         <div className="flex gap-2 bg-white rounded-xl p-1 shadow-sm border border-gray-200">
           <button
             onClick={() => setActiveTab('record')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-              activeTab === 'record'
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${activeTab === 'record'
                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-50'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-center gap-2">
               <Mic className="w-4 h-4" />
@@ -242,11 +245,10 @@ const MeetingApp: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('meetings')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-              activeTab === 'meetings'
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${activeTab === 'meetings'
                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-50'
-            }`}
+              }`}
           >
             <div className="flex items-center justify-center gap-2">
               <FileAudio className="w-4 h-4" />

@@ -4,6 +4,7 @@ backend/package-lock.json
 
 # Environment
 backend/.env
+frontend/.env
 .env.local
 .env.*.local
 **/.env

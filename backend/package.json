@@ -11,6 +11,7 @@
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.17.2",
     "@google-cloud/vision": "^4.0.2",
     "@tsoa/runtime": "^6.6.0",
     "axios": "^1.6.2",
