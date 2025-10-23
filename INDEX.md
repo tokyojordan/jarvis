@@ -45,6 +45,9 @@ This folder contains the complete, updated documentation for Jarvis with the new
    - Migration steps
    - Code update examples
 
+6. **[Api reference.md](./Api%20reference.md)** API Reference
+    - The API reference docs
+
 ---
 
 ## 🎯 Key Changes Summary

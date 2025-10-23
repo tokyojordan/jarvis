@@ -62,3 +62,9 @@ backend/.nyc_output/
 
 # Backups
 /n8n/*.tar.gz
+
+#jarvis-backend
+jarvis-backend/.env
+jarvis-backend/node_modules/
+jarvis-backend/serviceAccountKey.json
+jarvis-backend/package.json
