@@ -17,7 +17,7 @@ export class TaskController {
    *     description: Tasks can belong to multiple projects using projectIds array (child-knows-parent architecture)
    *     tags: [Tasks]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -195,7 +195,7 @@ export class TaskController {
    *     summary: Get task by ID
    *     tags: [Tasks]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -263,7 +263,7 @@ export class TaskController {
    *     description: Use projectId to query tasks in a specific project (uses array-contains)
    *     tags: [Tasks]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: query
    *         name: workspaceId
@@ -399,7 +399,7 @@ export class TaskController {
    *     description: Can update projectIds array to add/remove project associations
    *     tags: [Tasks]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -539,7 +539,7 @@ export class TaskController {
    *     summary: Delete task
    *     tags: [Tasks]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -607,7 +607,7 @@ export class TaskController {
    *     description: Atomically add a project to the task's projectIds array
    *     tags: [Tasks]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -697,7 +697,7 @@ export class TaskController {
    *     description: Atomically remove a project from the task's projectIds array
    *     tags: [Tasks]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id

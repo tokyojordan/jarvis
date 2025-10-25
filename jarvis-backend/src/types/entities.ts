@@ -1,140 +1,232 @@
 import { Timestamp } from 'firebase-admin/firestore';
 
 /**
- * Base interface for all entities with common fields
+ * Icon configuration for workspaces, teams, etc.
+ * Uses Material Icons (Google's official icon library)
+ * 
+ * Browse icons at: https://fonts.google.com/icons
  */
-export interface BaseEntity {
-  id?: string;
-  createdAt: Timestamp | Date;
-  updatedAt: Timestamp | Date;
-  createdBy: string;
-  updatedBy: string;
+export interface IconConfig {
+  /**
+   * Material Icon name (snake_case format)
+   * Examples: "rocket_launch", "group", "folder", "business_center"
+   * 
+   * Common workspace icons:
+   * - rocket_launch, dashboard, workspace, business, folder
+   * - analytics, construction, code, design_services
+   * 
+   * Browse all: https://fonts.google.com/icons
+   */
+  icon?: string;
+  
+  /**
+   * Emoji fallback (if not using Material Icons)
+   * Examples: "🚀", "👥", "📁"
+   */
+  emoji?: string;
+  
+  /**
+   * Custom icon URL (for uploaded icons stored in Cloud Storage)
+   * Example: "https://storage.googleapis.com/jarvis-icons/custom-icon.svg"
+   */
+  iconUrl?: string;
+  
+  /**
+   * Icon color (hex code)
+   * Example: "#4F46E5"
+   */
+  iconColor?: string;
+  
+  /**
+   * Background color (hex code)
+   * Example: "#EEF2FF"
+   */
+  bgColor?: string;
 }
 
 /**
- * Organization - Top level entity
+ * Organization entity
  */
-export interface Organization extends BaseEntity {
+export interface Organization {
+  id: string;
   name: string;
   description?: string;
   ownerId: string;
-  memberIds: string[]; // User IDs who are members
-  settings?: Record<string, any>;
+  memberIds: string[];
+  settings?: {
+    timezone?: string;
+    locale?: string;
+    [key: string]: any;
+  };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 /**
- * Workspace - Groups teams and portfolios under an organization
+ * Workspace entity (belongs to Organization)
  */
-export interface Workspace extends BaseEntity {
+export interface Workspace {
+  id: string;
+  organizationId: string;
+  name: string;
+  description?: string;
+  
+  // Visual customization
+  color?: string;           // Hex color: "#4F46E5"
+  
+  // Icon options (use ONE of these approaches):
+  icon?: string;            // Icon library identifier: "rocket" or emoji: "🚀"
+  iconConfig?: IconConfig;  // Full icon configuration object
+  
+  userId: string;           // Creator
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/**
+ * Team entity (optional, belongs to Workspace)
+ * 
+ * Note: Teams are optional organizational units.
+ * If you want to associate projects with teams, create a separate
+ * project-team mapping or add teamId to Project (but this violates
+ * the direct-parent-only rule, so consider if you really need it).
+ */
+export interface Team {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string;
+  memberIds: string[];
+  
+  // Visual customization
+  color?: string;
+  icon?: string;
+  iconConfig?: IconConfig;
+  
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/**
+ * Portfolio entity (belongs to Workspace)
+ */
+export interface Portfolio {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string;
+  
+  // Visual customization
+  color?: string;
+  icon?: string;
+  iconConfig?: IconConfig;
+  
+  status: PortfolioStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/**
+ * Portfolio status with rolled-up metrics
+ */
+export interface PortfolioStatus {
+  completionPercentage: number;
+  totalTasks: number;
+  completedTasks: number;
+  projects: Array<{
+    id: string;
+    name: string;
+    completionPercentage: number;
+  }>;
+}
+
+/**
+ * Project entity (v2.0 - child knows parent)
+ * Projects can belong to MULTIPLE portfolios (many-to-many)
+ * 
+ * Note: Projects ONLY store portfolioIds (direct parent).
+ * To get workspace/organization, traverse: Project → Portfolio → Workspace → Organization
+ */
+export interface Project {
+  id: string;
+  portfolioIds: string[];   // ✅ Direct parent only (v2.0 model, many-to-many)
+  name: string;
+  description?: string;
+  
+  // Visual customization
+  color?: string;
+  icon?: string;
+  iconConfig?: IconConfig;
+  
+  status: 'not_started' | 'in_progress' | 'completed';
+  completionPercentage: number;
+  
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/**
+ * Task entity (v2.0 - child knows parent)
+ * Tasks can belong to MULTIPLE projects (many-to-many)
+ */
+export interface Task {
+  id: string;
+  projectIds: string[];     // ✅ Array of project IDs (v2.0 model)
+  userId: string;
+  title: string;
+  description?: string;
+  assigneeId?: string;
+  
+  // Organization
+  tags?: string[];
+  customFields?: { [key: string]: string };
+  
+  // Dependencies (other tasks that must complete first)
+  // Use this instead of subtasks - just create dependent tasks!
+  dependencies?: string[];  // Array of task IDs this task depends on
+  
+  // Status
+  status: 'not_started' | 'in_progress' | 'completed';
+  
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/**
+ * API Request/Response Types
+ */
+export interface CreateOrganizationRequest {
+  name: string;
+  description?: string;
+  settings?: Record<string, any>;
+}
+
+export interface UpdateOrganizationRequest {
+  name?: string;
+  description?: string;
+  settings?: Record<string, any>;
+}
+
+export interface CreateWorkspaceRequest {
   organizationId: string;
   name: string;
   description?: string;
   color?: string;
   icon?: string;
+  iconConfig?: IconConfig;
 }
 
-/**
- * Team - Optional grouping for projects (belongs to workspace)
- */
-export interface Team extends BaseEntity {
-  organizationId: string;
-  workspaceId: string;
-  name: string;
-  description?: string;
-  memberIds: string[]; // User IDs who are team members
-  leaderId?: string; // Team lead user ID
-}
-
-/**
- * Portfolio - Groups multiple projects for reporting (belongs to workspace)
- */
-export interface Portfolio extends BaseEntity {
-  organizationId: string;
-  workspaceId: string;
-  name: string;
+export interface UpdateWorkspaceRequest {
+  name?: string;
   description?: string;
   color?: string;
-  ownerId: string;
-  startDate?: Timestamp | Date;
-  endDate?: Timestamp | Date;
-  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
-  goals?: string[];
-  metrics?: Record<string, any>;
+  icon?: string;
+  iconConfig?: IconConfig;
 }
 
-/**
- * Project - Can belong to MULTIPLE portfolios (many-to-many)
- * CRITICAL: Uses portfolioIds array (child knows parent)
- */
-export interface Project extends BaseEntity {
-  organizationId: string;
-  workspaceId: string;
-  portfolioIds: string[]; // ✅ Array of portfolio IDs (child knows parent)
-  teamId?: string; // Optional team assignment
-  name: string;
-  description?: string;
-  ownerId: string;
-  memberIds: string[]; // Project team members
-  startDate?: Timestamp | Date;
-  endDate?: Timestamp | Date;
-  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
-  priority?: 'low' | 'medium' | 'high' | 'critical';
-  tags?: string[];
-  customFields?: Record<string, any>;
-}
-
-/**
- * Task - Can belong to MULTIPLE projects (many-to-many)
- * CRITICAL: Uses projectIds array (child knows parent)
- */
-export interface Task extends BaseEntity {
-  organizationId: string;
-  workspaceId: string;
-  projectIds: string[]; // ✅ Array of project IDs (child knows parent)
-  title: string;
-  description?: string;
-  assigneeId?: string;
-  reporterId?: string;
-  status: 'todo' | 'in_progress' | 'review' | 'blocked' | 'done' | 'archived';
-  priority?: 'low' | 'medium' | 'high' | 'critical';
-  dueDate?: Timestamp | Date;
-  estimatedHours?: number;
-  actualHours?: number;
-  tags?: string[];
-  customFields?: Record<string, any>;
-  subtasks?: Subtask[];
-  dependencies?: TaskDependency[];
-  attachments?: Attachment[];
-}
-
-/**
- * Subtask - Belongs to a task
- */
-export interface Subtask {
-  id: string;
-  title: string;
-  completed: boolean;
-  completedAt?: Timestamp | Date;
-  completedBy?: string;
-}
-
-/**
- * Task Dependency - Defines relationship between tasks
- */
-export interface TaskDependency {
-  taskId: string; // The task that this task depends on
-  type: 'blocks' | 'blocked_by' | 'relates_to';
-}
-
-/**
- * Attachment - File attached to a task
- */
-export interface Attachment {
-  id: string;
-  name: string;
-  url: string;
-  size: number;
-  mimeType: string;
-  uploadedAt: Timestamp | Date;
-  uploadedBy: string;
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
 }

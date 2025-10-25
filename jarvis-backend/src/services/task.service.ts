@@ -19,8 +19,6 @@ export class TaskService extends BaseService<Task> {
    * IMPORTANT: projectIds is an array (can belong to multiple projects)
    */
   async createTask(
-    organizationId: string,
-    workspaceId: string,
     projectIds: string[], // ✅ Array of project IDs
     title: string,
     userId: string,
@@ -47,8 +45,6 @@ export class TaskService extends BaseService<Task> {
 
     return await this.create(
       {
-        organizationId,
-        workspaceId,
         projectIds, // ✅ Store array of project IDs
         title,
         description: options?.description,

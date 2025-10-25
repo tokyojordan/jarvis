@@ -63,6 +63,10 @@ export abstract class BaseService<T extends BaseEntity> {
    * Get a document by ID
    */
   async getById(id: string): Promise<T | null> {
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      console.error(`Invalid document ID for collection ${this.collectionName}:`, id);
+      throw new Error(`Invalid document ID for collection ${this.collectionName}: ID must be a non-empty string`);
+    }
     const doc = await this.getCollection().doc(id).get();
     return this.documentToEntity(doc);
   }

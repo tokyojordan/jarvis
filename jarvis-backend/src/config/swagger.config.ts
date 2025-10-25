@@ -1,14 +1,20 @@
 import swaggerJsdoc from 'swagger-jsdoc';
+import { version } from '../../package.json';
 
 const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'Jarvis API',
-      version: '2.0.0',
-      description: 'Hierarchy management system with child-knows-parent architecture',
+      version: version || '1.0.0',
+      description: 'AI-Powered Meeting Assistant & Personal CRM API',
       contact: {
         name: 'API Support',
+        email: 'support@jarvis.com',
+      },
+      license: {
+        name: 'MIT',
+        url: 'https://opensource.org/licenses/MIT',
       },
     },
     servers: [
@@ -17,21 +23,23 @@ const options: swaggerJsdoc.Options = {
         description: 'Development server',
       },
       {
-        url: 'https://your-cloud-run-url.run.app',
+        url: 'https://jarvis-api.example.com',
         description: 'Production server',
       },
     ],
+    // 🔑 SECURITY SCHEMES - This is what was missing!
     components: {
       securitySchemes: {
-        UserIdHeader: {
+        userAuth: {
           type: 'apiKey',
           in: 'header',
           name: 'x-user-id',
-          description: 'User ID for authentication (TODO: Replace with Firebase Auth token)',
+          description: 'User ID for authentication (use: user-123 for testing)',
         },
       },
       schemas: {
-        Error: {
+        // Error Response Schema
+        ErrorResponse: {
           type: 'object',
           properties: {
             success: {
@@ -44,205 +52,319 @@ const options: swaggerJsdoc.Options = {
             },
             message: {
               type: 'string',
-              example: 'Error message',
+              example: 'Error message description',
             },
           },
         },
+        // Organization Schema
         Organization: {
           type: 'object',
-          required: ['name', 'ownerId', 'memberIds'],
           properties: {
-            id: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            ownerId: { type: 'string' },
+            id: {
+              type: 'string',
+              example: 'org-123abc',
+            },
+            name: {
+              type: 'string',
+              example: 'Acme Corporation',
+            },
+            description: {
+              type: 'string',
+              example: 'A leading software development company',
+            },
+            ownerId: {
+              type: 'string',
+              example: 'user-123',
+            },
             memberIds: {
               type: 'array',
-              items: { type: 'string' },
+              items: {
+                type: 'string',
+              },
+              example: ['user-123', 'user-456'],
             },
-            settings: { type: 'object' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-            createdBy: { type: 'string' },
-            updatedBy: { type: 'string' },
+            settings: {
+              type: 'object',
+              example: { timezone: 'America/Los_Angeles', locale: 'en-US' },
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2025-01-01T00:00:00.000Z',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2025-01-15T00:00:00.000Z',
+            },
           },
         },
+        // Workspace Schema
         Workspace: {
           type: 'object',
-          required: ['organizationId', 'name'],
           properties: {
-            id: { type: 'string' },
-            organizationId: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            color: { type: 'string' },
-            icon: { type: 'string' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-            createdBy: { type: 'string' },
-            updatedBy: { type: 'string' },
-          },
-        },
-        Team: {
-          type: 'object',
-          required: ['organizationId', 'workspaceId', 'name', 'memberIds'],
-          properties: {
-            id: { type: 'string' },
-            organizationId: { type: 'string' },
-            workspaceId: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            memberIds: {
-              type: 'array',
-              items: { type: 'string' },
+            id: {
+              type: 'string',
+              example: 'workspace-456def',
             },
-            leaderId: { type: 'string' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-            createdBy: { type: 'string' },
-            updatedBy: { type: 'string' },
+            organizationId: {
+              type: 'string',
+              example: 'org-123abc',
+            },
+            name: {
+              type: 'string',
+              example: 'Engineering Workspace',
+            },
+            description: {
+              type: 'string',
+              example: 'All engineering teams and projects',
+            },
+            color: {
+              type: 'string',
+              example: '#4F46E5',
+            },
+            icon: {
+              type: 'string',
+              description: 'Material Icon name (browse at https://fonts.google.com/icons)',
+              example: 'rocket_launch',
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2025-01-01T00:00:00.000Z',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2025-01-15T00:00:00.000Z',
+            },
           },
         },
+        // Portfolio Schema
         Portfolio: {
           type: 'object',
-          required: ['organizationId', 'workspaceId', 'name', 'ownerId', 'status'],
           properties: {
-            id: { type: 'string' },
-            organizationId: { type: 'string' },
-            workspaceId: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            color: { type: 'string' },
-            ownerId: { type: 'string' },
-            startDate: { type: 'string', format: 'date-time' },
-            endDate: { type: 'string', format: 'date-time' },
+            id: {
+              type: 'string',
+              example: 'portfolio-789ghi',
+            },
+            workspaceId: {
+              type: 'string',
+              example: 'workspace-456def',
+            },
+            name: {
+              type: 'string',
+              example: 'Q4 Roadmap',
+            },
+            description: {
+              type: 'string',
+              example: 'High-priority initiatives for Q4 2025',
+            },
             status: {
-              type: 'string',
-              enum: ['planning', 'active', 'on_hold', 'completed', 'archived'],
-            },
-            goals: {
-              type: 'array',
-              items: { type: 'string' },
-            },
-            metrics: { type: 'object' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-            createdBy: { type: 'string' },
-            updatedBy: { type: 'string' },
-          },
-        },
-        Project: {
-          type: 'object',
-          required: ['organizationId', 'workspaceId', 'portfolioIds', 'name', 'ownerId', 'memberIds', 'status'],
-          properties: {
-            id: { type: 'string' },
-            organizationId: { type: 'string' },
-            workspaceId: { type: 'string' },
-            portfolioIds: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Array of portfolio IDs (child-knows-parent)',
-            },
-            teamId: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            ownerId: { type: 'string' },
-            memberIds: {
-              type: 'array',
-              items: { type: 'string' },
-            },
-            startDate: { type: 'string', format: 'date-time' },
-            endDate: { type: 'string', format: 'date-time' },
-            status: {
-              type: 'string',
-              enum: ['planning', 'active', 'on_hold', 'completed', 'archived'],
-            },
-            priority: {
-              type: 'string',
-              enum: ['low', 'medium', 'high', 'critical'],
-            },
-            tags: {
-              type: 'array',
-              items: { type: 'string' },
-            },
-            customFields: { type: 'object' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-            createdBy: { type: 'string' },
-            updatedBy: { type: 'string' },
-          },
-        },
-        Task: {
-          type: 'object',
-          required: ['organizationId', 'workspaceId', 'projectIds', 'title', 'status'],
-          properties: {
-            id: { type: 'string' },
-            organizationId: { type: 'string' },
-            workspaceId: { type: 'string' },
-            projectIds: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Array of project IDs (child-knows-parent)',
-            },
-            title: { type: 'string' },
-            description: { type: 'string' },
-            assigneeId: { type: 'string' },
-            reporterId: { type: 'string' },
-            status: {
-              type: 'string',
-              enum: ['todo', 'in_progress', 'review', 'blocked', 'done', 'archived'],
-            },
-            priority: {
-              type: 'string',
-              enum: ['low', 'medium', 'high', 'critical'],
-            },
-            dueDate: { type: 'string', format: 'date-time' },
-            estimatedHours: { type: 'number' },
-            actualHours: { type: 'number' },
-            tags: {
-              type: 'array',
-              items: { type: 'string' },
-            },
-            customFields: { type: 'object' },
-            subtasks: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  title: { type: 'string' },
-                  completed: { type: 'boolean' },
+              type: 'object',
+              properties: {
+                completionPercentage: {
+                  type: 'number',
+                  example: 65,
                 },
-              },
-            },
-            dependencies: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  taskId: { type: 'string' },
-                  type: {
-                    type: 'string',
-                    enum: ['blocks', 'blocked_by', 'relates_to'],
+                totalTasks: {
+                  type: 'number',
+                  example: 100,
+                },
+                completedTasks: {
+                  type: 'number',
+                  example: 65,
+                },
+                projects: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: {
+                        type: 'string',
+                      },
+                      name: {
+                        type: 'string',
+                      },
+                      completionPercentage: {
+                        type: 'number',
+                      },
+                    },
                   },
                 },
               },
             },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-            createdBy: { type: 'string' },
-            updatedBy: { type: 'string' },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+            },
+          },
+        },
+        // Project Schema (with portfolioIds array - v2.0 model)
+        Project: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              example: 'project-abc123',
+            },
+            portfolioIds: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              description: 'Array of portfolio IDs (direct parent, many-to-many). Get workspace via Portfolio.',
+              example: ['portfolio-789ghi', 'portfolio-xyz999'],
+            },
+            name: {
+              type: 'string',
+              example: 'Mobile App Redesign',
+            },
+            description: {
+              type: 'string',
+              example: 'Complete overhaul of iOS and Android apps',
+            },
+            status: {
+              type: 'string',
+              enum: ['not_started', 'in_progress', 'completed'],
+              example: 'in_progress',
+            },
+            completionPercentage: {
+              type: 'number',
+              example: 45,
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+            },
+          },
+        },
+        // Task Schema (with projectIds array - v2.0 model)
+        Task: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              example: 'task-001',
+            },
+            projectIds: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              description: 'Array of project IDs (many-to-many relationship)',
+              example: ['project-abc123', 'project-def456'],
+            },
+            userId: {
+              type: 'string',
+              example: 'user-123',
+            },
+            title: {
+              type: 'string',
+              example: 'Research competitor apps',
+            },
+            description: {
+              type: 'string',
+              example: 'Analyze top 10 mobile apps in our category',
+            },
+            assigneeId: {
+              type: 'string',
+              example: 'user-456',
+            },
+            tags: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              example: ['research', 'competitive-analysis'],
+            },
+            customFields: {
+              type: 'object',
+              example: { Priority: 'High', 'Estimated Hours': '8' },
+            },
+            dependencies: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              description: 'Array of task IDs this task depends on (use this instead of subtasks)',
+              example: ['task-000'],
+            },
+            status: {
+              type: 'string',
+              enum: ['not_started', 'in_progress', 'completed'],
+              example: 'in_progress',
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+            },
+          },
+        },
+        // Team Schema
+        Team: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              example: 'team-123xyz',
+            },
+            workspaceId: {
+              type: 'string',
+              example: 'workspace-456def',
+            },
+            name: {
+              type: 'string',
+              example: 'Mobile Team',
+            },
+            description: {
+              type: 'string',
+              example: 'iOS and Android development team',
+            },
+            memberIds: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              example: ['user-123', 'user-456', 'user-789'],
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+            },
           },
         },
       },
     },
+    // Apply security globally to all endpoints
     security: [
       {
-        UserIdHeader: [],
+        userAuth: [],
       },
     ],
   },
-  apis: ['./src/routes/*.ts', './src/routes/*.js', './src/controllers/*.ts', './src/controllers/*.js'], // Path to route and controller files
+  // Path to files containing Swagger annotations
+  apis: [
+    './src/routes/*.ts',
+    './src/controllers/*.ts',
+    './src/models/*.ts',
+  ],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

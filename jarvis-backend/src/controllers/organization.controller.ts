@@ -4,13 +4,77 @@ import { organizationService } from '../services';
 import { CreateOrganizationRequest, UpdateOrganizationRequest, ApiResponse } from '../types';
 
 /**
+ * @swagger
+ * tags:
+ *   name: Organizations
+ *   description: Organization management endpoints
+ */
+
+/**
  * Organization Controller
  * Handles HTTP requests for organization operations
  */
 export class OrganizationController {
   /**
-   * Create a new organization
-   * POST /api/organizations
+   * @swagger
+   * /api/organizations:
+   *   post:
+   *     summary: Create a new organization
+   *     description: Creates a new organization with the authenticated user as the owner
+   *     tags: [Organizations]
+   *     security:
+   *       - userAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - name
+   *             properties:
+   *               name:
+   *                 type: string
+   *                 description: Organization name
+   *                 example: "Acme Corporation"
+   *               description:
+   *                 type: string
+   *                 description: Organization description
+   *                 example: "A leading software development company"
+   *               settings:
+   *                 type: object
+   *                 description: Organization settings
+   *                 example: { "timezone": "America/Los_Angeles", "locale": "en-US" }
+   *     responses:
+   *       201:
+   *         description: Organization created successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     organizationId:
+   *                       type: string
+   *                       example: "org-123abc"
+   *                 message:
+   *                   type: string
+   *                   example: "Organization created successfully"
+   *       400:
+   *         description: Validation error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       401:
+   *         description: Unauthorized
+   *       500:
+   *         description: Internal server error
    */
   async create(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -49,8 +113,41 @@ export class OrganizationController {
   }
 
   /**
-   * Get organization by ID
-   * GET /api/organizations/:id
+   * @swagger
+   * /api/organizations/{id}:
+   *   get:
+   *     summary: Get organization by ID
+   *     description: Retrieves a specific organization by its ID. User must be a member.
+   *     tags: [Organizations]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Organization ID
+   *         example: "org-123abc"
+   *     responses:
+   *       200:
+   *         description: Organization retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 data:
+   *                   $ref: '#/components/schemas/Organization'
+   *       403:
+   *         description: User is not a member of this organization
+   *       404:
+   *         description: Organization not found
+   *       500:
+   *         description: Internal server error
    */
   async getById(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -94,8 +191,31 @@ export class OrganizationController {
   }
 
   /**
-   * Get all organizations for current user
-   * GET /api/organizations
+   * @swagger
+   * /api/organizations:
+   *   get:
+   *     summary: Get all organizations for current user
+   *     description: Retrieves all organizations where the authenticated user is a member
+   *     tags: [Organizations]
+   *     security:
+   *       - userAuth: []
+   *     responses:
+   *       200:
+   *         description: Organizations retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/Organization'
+   *       500:
+   *         description: Internal server error
    */
   async getAll(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -118,8 +238,56 @@ export class OrganizationController {
   }
 
   /**
-   * Update organization
-   * PATCH /api/organizations/:id
+   * @swagger
+   * /api/organizations/{id}:
+   *   patch:
+   *     summary: Update organization
+   *     description: Updates organization details. Only the owner can update.
+   *     tags: [Organizations]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Organization ID
+   *         example: "org-123abc"
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               name:
+   *                 type: string
+   *                 example: "Acme Corp Updated"
+   *               description:
+   *                 type: string
+   *                 example: "Updated description"
+   *               settings:
+   *                 type: object
+   *                 example: { "timezone": "America/New_York" }
+   *     responses:
+   *       200:
+   *         description: Organization updated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Organization updated successfully"
+   *       403:
+   *         description: Only the owner can update the organization
+   *       500:
+   *         description: Internal server error
    */
   async update(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -155,8 +323,40 @@ export class OrganizationController {
   }
 
   /**
-   * Delete organization
-   * DELETE /api/organizations/:id
+   * @swagger
+   * /api/organizations/{id}:
+   *   delete:
+   *     summary: Delete organization
+   *     description: Deletes an organization. Only the owner can delete. All related data will be removed.
+   *     tags: [Organizations]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Organization ID
+   *         example: "org-123abc"
+   *     responses:
+   *       200:
+   *         description: Organization deleted successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Organization deleted successfully"
+   *       403:
+   *         description: Only the owner can delete the organization
+   *       500:
+   *         description: Internal server error
    */
   async delete(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -191,8 +391,55 @@ export class OrganizationController {
   }
 
   /**
-   * Add member to organization
-   * POST /api/organizations/:id/members
+   * @swagger
+   * /api/organizations/{id}/members:
+   *   post:
+   *     summary: Add member to organization
+   *     description: Adds a new member to the organization. Only the owner can add members.
+   *     tags: [Organizations]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Organization ID
+   *         example: "org-123abc"
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - userId
+   *             properties:
+   *               userId:
+   *                 type: string
+   *                 description: User ID to add as member
+   *                 example: "user-456def"
+   *     responses:
+   *       200:
+   *         description: Member added successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Member added successfully"
+   *       400:
+   *         description: Validation error
+   *       403:
+   *         description: Only the owner can add members
+   *       500:
+   *         description: Internal server error
    */
   async addMember(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -237,8 +484,49 @@ export class OrganizationController {
   }
 
   /**
-   * Remove member from organization
-   * DELETE /api/organizations/:id/members/:userId
+   * @swagger
+   * /api/organizations/{id}/members/{userId}:
+   *   delete:
+   *     summary: Remove member from organization
+   *     description: Removes a member from the organization. Only the owner can remove members. Owner cannot remove themselves.
+   *     tags: [Organizations]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Organization ID
+   *         example: "org-123abc"
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: User ID to remove
+   *         example: "user-456def"
+   *     responses:
+   *       200:
+   *         description: Member removed successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Member removed successfully"
+   *       400:
+   *         description: Cannot remove owner
+   *       403:
+   *         description: Only the owner can remove members
+   *       500:
+   *         description: Internal server error
    */
   async removeMember(req: AuthRequest, res: Response): Promise<void> {
     try {

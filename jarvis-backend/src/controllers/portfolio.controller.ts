@@ -15,7 +15,7 @@ export class PortfolioController {
    *     summary: Create a new portfolio
    *     tags: [Portfolios]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -144,7 +144,7 @@ export class PortfolioController {
    *     summary: Get portfolio by ID
    *     tags: [Portfolios]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -211,7 +211,7 @@ export class PortfolioController {
    *     summary: Get all portfolios (filtered by workspaceId or organizationId)
    *     tags: [Portfolios]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: query
    *         name: workspaceId
@@ -303,7 +303,7 @@ export class PortfolioController {
    *     summary: Update portfolio
    *     tags: [Portfolios]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -400,7 +400,7 @@ export class PortfolioController {
    *     summary: Delete portfolio
    *     tags: [Portfolios]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id

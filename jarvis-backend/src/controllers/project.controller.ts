@@ -17,7 +17,7 @@ export class ProjectController {
    *     description: Projects can belong to multiple portfolios using portfolioIds array (child-knows-parent architecture)
    *     tags: [Projects]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -182,7 +182,7 @@ export class ProjectController {
    *     summary: Get project by ID
    *     tags: [Projects]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -250,7 +250,7 @@ export class ProjectController {
    *     description: Use portfolioId to query projects in a specific portfolio (uses array-contains)
    *     tags: [Projects]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: query
    *         name: workspaceId
@@ -376,7 +376,7 @@ export class ProjectController {
    *     description: Can update portfolioIds array to add/remove portfolio associations
    *     tags: [Projects]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -500,7 +500,7 @@ export class ProjectController {
    *     summary: Delete project
    *     tags: [Projects]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -565,7 +565,7 @@ export class ProjectController {
    *     description: Atomically add a portfolio to the project's portfolioIds array
    *     tags: [Projects]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -657,7 +657,7 @@ export class ProjectController {
    *     description: Atomically remove a portfolio from the project's portfolioIds array
    *     tags: [Projects]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id

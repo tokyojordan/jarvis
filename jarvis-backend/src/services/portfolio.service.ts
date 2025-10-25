@@ -15,7 +15,6 @@ export class PortfolioService extends BaseService<Portfolio> {
    * Create a new portfolio
    */
   async createPortfolio(
-    organizationId: string,
     workspaceId: string,
     name: string,
     ownerId: string,
@@ -31,7 +30,6 @@ export class PortfolioService extends BaseService<Portfolio> {
   ): Promise<string> {
     return await this.create(
       {
-        organizationId,
         workspaceId,
         name,
         description: options?.description,

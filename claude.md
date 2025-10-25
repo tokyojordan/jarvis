@@ -1,1 +1,14 @@
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/Api%20reference.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/CHANGELOG.md
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/INDEX.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/architecture.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/complete.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/data-model-summary.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/files.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/quick-reference.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/readme.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/technical%20overview.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/ui-components-guide.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/visual-comparison.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/material-icon-guide.md
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/task-dependencies.md

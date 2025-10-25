@@ -15,7 +15,7 @@ export class TeamController {
    *     summary: Create a new team
    *     tags: [Teams]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -118,7 +118,7 @@ export class TeamController {
    *     summary: Get team by ID
    *     tags: [Teams]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -185,7 +185,7 @@ export class TeamController {
    *     summary: Get all teams (filtered by workspaceId or organizationId)
    *     tags: [Teams]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: query
    *         name: workspaceId
@@ -277,7 +277,7 @@ export class TeamController {
    *     summary: Update team
    *     tags: [Teams]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -359,7 +359,7 @@ export class TeamController {
    *     summary: Delete team
    *     tags: [Teams]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -423,7 +423,7 @@ export class TeamController {
    *     summary: Add member to team
    *     tags: [Teams]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -510,7 +510,7 @@ export class TeamController {
    *     summary: Remove member from team
    *     tags: [Teams]
    *     security:
-   *       - UserIdHeader: []
+   *       - userAuth: []
    *     parameters:
    *       - in: path
    *         name: id

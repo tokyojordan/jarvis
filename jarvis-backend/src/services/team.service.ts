@@ -15,7 +15,6 @@ export class TeamService extends BaseService<Team> {
    * Create a new team
    */
   async createTeam(
-    organizationId: string,
     workspaceId: string,
     name: string,
     userId: string,
@@ -25,7 +24,6 @@ export class TeamService extends BaseService<Team> {
   ): Promise<string> {
     return await this.create(
       {
-        organizationId,
         workspaceId,
         name,
         description,

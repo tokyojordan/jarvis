@@ -4,12 +4,81 @@ import { workspaceService, organizationService } from '../services';
 import { CreateWorkspaceRequest, UpdateWorkspaceRequest, ApiResponse } from '../types';
 
 /**
+ * @swagger
+ * tags:
+ *   name: Workspaces
+ *   description: Workspace management endpoints (workspaces belong to organizations)
+ */
+
+/**
  * Workspace Controller
  */
 export class WorkspaceController {
   /**
-   * Create a new workspace
-   * POST /api/workspaces
+   * @swagger
+   * /api/workspaces:
+   *   post:
+   *     summary: Create a new workspace
+   *     description: Creates a new workspace within an organization. User must be a member of the organization.
+   *     tags: [Workspaces]
+   *     security:
+   *       - userAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - organizationId
+   *               - name
+   *             properties:
+   *               organizationId:
+   *                 type: string
+   *                 description: Parent organization ID
+   *                 example: "org-123abc"
+   *               name:
+   *                 type: string
+   *                 description: Workspace name
+   *                 example: "Engineering Workspace"
+   *               description:
+   *                 type: string
+   *                 description: Workspace description
+   *                 example: "All engineering teams and projects"
+   *               color:
+   *                 type: string
+   *                 description: Color code for UI
+   *                 example: "#4F46E5"
+   *               icon:
+   *                 type: string
+   *                 description: Material Icon name (browse at https://fonts.google.com/icons)
+   *                 example: "rocket_launch"
+   *     responses:
+   *       201:
+   *         description: Workspace created successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     workspaceId:
+   *                       type: string
+   *                       example: "workspace-456def"
+   *                 message:
+   *                   type: string
+   *                   example: "Workspace created successfully"
+   *       400:
+   *         description: Validation error
+   *       403:
+   *         description: User is not a member of the organization
+   *       500:
+   *         description: Internal server error
    */
   async create(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -61,8 +130,41 @@ export class WorkspaceController {
   }
 
   /**
-   * Get workspace by ID
-   * GET /api/workspaces/:id
+   * @swagger
+   * /api/workspaces/{id}:
+   *   get:
+   *     summary: Get workspace by ID
+   *     description: Retrieves a specific workspace by its ID. User must be a member of the parent organization.
+   *     tags: [Workspaces]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Workspace ID
+   *         example: "workspace-456def"
+   *     responses:
+   *       200:
+   *         description: Workspace retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 data:
+   *                   $ref: '#/components/schemas/Workspace'
+   *       403:
+   *         description: User does not have access to this workspace
+   *       404:
+   *         description: Workspace not found
+   *       500:
+   *         description: Internal server error
    */
   async getById(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -106,8 +208,43 @@ export class WorkspaceController {
   }
 
   /**
-   * Get all workspaces in an organization
-   * GET /api/workspaces?organizationId=xxx
+   * @swagger
+   * /api/workspaces:
+   *   get:
+   *     summary: Get all workspaces in an organization
+   *     description: Retrieves all workspaces for a specific organization. User must be a member of the organization.
+   *     tags: [Workspaces]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: organizationId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Organization ID to filter workspaces
+   *         example: "org-123abc"
+   *     responses:
+   *       200:
+   *         description: Workspaces retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/Workspace'
+   *       400:
+   *         description: organizationId query parameter is required
+   *       403:
+   *         description: User does not have access to this organization
+   *       500:
+   *         description: Internal server error
    */
   async getAll(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -151,8 +288,62 @@ export class WorkspaceController {
   }
 
   /**
-   * Update workspace
-   * PATCH /api/workspaces/:id
+   * @swagger
+   * /api/workspaces/{id}:
+   *   patch:
+   *     summary: Update workspace
+   *     description: Updates workspace details. User must be a member of the parent organization.
+   *     tags: [Workspaces]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Workspace ID
+   *         example: "workspace-456def"
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               name:
+   *                 type: string
+   *                 example: "Engineering Workspace Updated"
+   *               description:
+   *                 type: string
+   *                 example: "Updated description"
+   *               color:
+   *                 type: string
+   *                 example: "#10B981"
+   *               icon:
+   *                 type: string
+   *                 description: Material Icon name
+   *                 example: "bolt"
+   *     responses:
+   *       200:
+   *         description: Workspace updated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Workspace updated successfully"
+   *       403:
+   *         description: User does not have access to this workspace
+   *       404:
+   *         description: Workspace not found
+   *       500:
+   *         description: Internal server error
    */
   async update(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -198,8 +389,42 @@ export class WorkspaceController {
   }
 
   /**
-   * Delete workspace
-   * DELETE /api/workspaces/:id
+   * @swagger
+   * /api/workspaces/{id}:
+   *   delete:
+   *     summary: Delete workspace
+   *     description: Deletes a workspace and all related data (teams, portfolios, projects, tasks). Only organization owners can delete workspaces.
+   *     tags: [Workspaces]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Workspace ID
+   *         example: "workspace-456def"
+   *     responses:
+   *       200:
+   *         description: Workspace deleted successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Workspace deleted successfully"
+   *       403:
+   *         description: Only organization owners can delete workspaces
+   *       404:
+   *         description: Workspace not found
+   *       500:
+   *         description: Internal server error
    */
   async delete(req: AuthRequest, res: Response): Promise<void> {
     try {
