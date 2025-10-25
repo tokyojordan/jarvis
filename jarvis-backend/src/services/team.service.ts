@@ -39,17 +39,17 @@ export class TeamService extends BaseService<Team> {
   }
 
   /**
-   * Get all teams in an organization
-   */
-  async getTeamsByOrganization(organizationId: string): Promise<Team[]> {
-    return await this.getByField('organizationId', organizationId);
-  }
-
-  /**
-   * Get all teams in a workspace
+   * Get teams by workspace
    */
   async getTeamsByWorkspace(workspaceId: string): Promise<Team[]> {
     return await this.getByField('workspaceId', workspaceId);
+  }
+
+  /**
+   * Get teams by organization
+   */
+  async getTeamsByOrganization(organizationId: string): Promise<Team[]> {
+    return await this.getByField('organizationId', organizationId);
   }
 
   /**
@@ -57,6 +57,13 @@ export class TeamService extends BaseService<Team> {
    */
   async getTeamsByMember(userId: string): Promise<Team[]> {
     return await this.getByArrayContains('memberIds', userId);
+  }
+
+  /**
+   * Get teams led by user
+   */
+  async getTeamsByLeader(leaderId: string): Promise<Team[]> {
+    return await this.getByField('leaderId', leaderId);
   }
 
   /**
@@ -74,14 +81,14 @@ export class TeamService extends BaseService<Team> {
   }
 
   /**
-   * Update team leader
+   * Set team leader
    */
-  async updateLeader(teamId: string, leaderId: string, userId: string): Promise<void> {
-    await this.update(teamId, { leaderId } as Partial<Team>, userId);
+  async setLeader(teamId: string, leaderId: string, updatedBy: string): Promise<void> {
+    await this.update(teamId, { leaderId } as Partial<Team>, updatedBy);
   }
 
   /**
-   * Check if user is team member
+   * Check if user is member of team
    */
   async isMember(teamId: string, userId: string): Promise<boolean> {
     const team = await this.getById(teamId);
