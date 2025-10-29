@@ -316,38 +316,23 @@ const options: swaggerJsdoc.Options = {
         // Team Schema
         Team: {
           type: 'object',
+          required: ['organizationId', 'workspaceId', 'name', 'memberIds'],
           properties: {
-            id: {
-              type: 'string',
-              example: 'team-123xyz',
-            },
-            workspaceId: {
-              type: 'string',
-              example: 'workspace-456def',
-            },
-            name: {
-              type: 'string',
-              example: 'Mobile Team',
-            },
-            description: {
-              type: 'string',
-              example: 'iOS and Android development team',
-            },
+            id: { type: 'string' },
+            organizationId: { type: 'string', description: 'The ID of the organization the team belongs to' },
+            workspaceId: { type: 'string', description: 'The ID of the workspace the team belongs to' },
+            name: { type: 'string', description: 'The name of the team' },
+            description: { type: 'string', description: 'Optional description of the team' },
             memberIds: {
               type: 'array',
-              items: {
-                type: 'string',
-              },
-              example: ['user-123', 'user-456', 'user-789'],
+              items: { type: 'string' },
+              description: 'Array of user IDs who are members of the team',
             },
-            createdAt: {
-              type: 'string',
-              format: 'date-time',
-            },
-            updatedAt: {
-              type: 'string',
-              format: 'date-time',
-            },
+            leaderId: { type: 'string', description: 'Optional ID of the team leader' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            createdBy: { type: 'string' },
+            updatedBy: { type: 'string' },
           },
         },
       },
@@ -363,7 +348,6 @@ const options: swaggerJsdoc.Options = {
   apis: [
     './src/routes/*.ts',
     './src/controllers/*.ts',
-    './src/models/*.ts',
   ],
 };
 

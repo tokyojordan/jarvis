@@ -1,3 +1,4 @@
+// src/controllers/portfolio.controller.ts
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { portfolioService, organizationService, workspaceService } from '../services';
@@ -63,12 +64,14 @@ export class PortfolioController {
    */
   async create(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { 
-        organizationId, 
-        workspaceId, 
-        name, 
-        description, 
-        color, 
+      console.log('POST /api/portfolios - Incoming request body:', JSON.stringify(req.body, null, 2));
+      console.log('POST /api/portfolios - x-user-id:', req.userId);
+
+      const {
+        workspaceId,
+        name,
+        description,
+        color,
         ownerId,
         startDate,
         endDate,
@@ -77,50 +80,70 @@ export class PortfolioController {
       } = req.body as CreatePortfolioRequest;
       const userId = req.userId;
 
-      if (!organizationId || !workspaceId || !name || !ownerId) {
+      if (!workspaceId || !name || !ownerId) {
+        console.log('POST /api/portfolios - Validation failed: Missing required fields');
         res.status(400).json({
           success: false,
           error: 'Validation Error',
-          message: 'organizationId, workspaceId, name, and ownerId are required',
+          message: 'workspaceId, name, and ownerId are required',
         } as ApiResponse);
         return;
       }
 
-      // Check if user is member of organization
-      const isMember = await organizationService.isMember(organizationId, userId);
-      if (!isMember) {
-        res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          message: 'You must be a member of the organization',
-        } as ApiResponse);
-        return;
-      }
-
-      // Verify workspace belongs to organization
-      const workspace = await workspaceService.getById(workspaceId);
-      if (!workspace || workspace.organizationId !== organizationId) {
+      // Validate optional fields
+      if (startDate && isNaN(Date.parse(startDate))) {
+        console.log('POST /api/portfolios - Validation failed: Invalid startDate');
         res.status(400).json({
           success: false,
           error: 'Validation Error',
-          message: 'Invalid workspace for this organization',
+          message: 'startDate must be a valid date',
+        } as ApiResponse);
+        return;
+      }
+      if (endDate && isNaN(Date.parse(endDate))) {
+        console.log('POST /api/portfolios - Validation failed: Invalid endDate');
+        res.status(400).json({
+          success: false,
+          error: 'Validation Error',
+          message: 'endDate must be a valid date',
+        } as ApiResponse);
+        return;
+      }
+      if (status && !['planning', 'active', 'on_hold', 'completed', 'archived'].includes(status)) {
+        console.log('POST /api/portfolios - Validation failed: Invalid status');
+        res.status(400).json({
+          success: false,
+          error: 'Validation Error',
+          message: 'status must be one of: planning, active, on_hold, completed, archived',
+        } as ApiResponse);
+        return;
+      }
+      if (goals && (!Array.isArray(goals) || goals.some(g => typeof g !== 'string'))) {
+        console.log('POST /api/portfolios - Validation failed: Invalid goals');
+        res.status(400).json({
+          success: false,
+          error: 'Validation Error',
+          message: 'goals must be an array of strings',
         } as ApiResponse);
         return;
       }
 
       const portfolioId = await portfolioService.createPortfolio(
-        organizationId,
         workspaceId,
         name,
         ownerId,
         userId,
-        description,
-        color,
-        startDate,
-        endDate,
-        status,
-        goals
+        {
+          description: description || '', // Ensure no undefined
+          color: color || '#000000', // Default color
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+          status: status as 'planning' | 'active' | 'on_hold' | 'completed' | 'archived' | undefined,
+          goals: goals || [],
+        }
       );
+
+      console.log('POST /api/portfolios - Created portfolio ID:', portfolioId);
 
       res.status(201).json({
         success: true,
@@ -128,7 +151,7 @@ export class PortfolioController {
         message: 'Portfolio created successfully',
       } as ApiResponse);
     } catch (error) {
-      console.error('Error creating portfolio:', error);
+      console.error('POST /api/portfolios - Error creating portfolio:', error);
       res.status(500).json({
         success: false,
         error: 'Internal Server Error',
@@ -136,6 +159,7 @@ export class PortfolioController {
       } as ApiResponse);
     }
   }
+
 
   /**
    * @swagger

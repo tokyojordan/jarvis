@@ -98,19 +98,17 @@ app.get('/', (req: Request, res: Response) => {
 // Import routes
 import organizationRoutes from './routes/organization.routes';
 import workspaceRoutes from './routes/workspace.routes';
-
-app.use('/api/organizations', organizationRoutes);
-app.use('/api/workspaces', workspaceRoutes);
-
-// TODO: Add remaining routes as they are created
 import teamRoutes from './routes/team.routes';
 import portfolioRoutes from './routes/portfolio.routes';
 import projectRoutes from './routes/project.routes';
 import taskRoutes from './routes/task.routes';
+
 app.use('/api/teams', teamRoutes);
 app.use('/api/portfolios', portfolioRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/organizations', organizationRoutes);
+app.use('/api/workspaces', workspaceRoutes);
 
 // ============= ERROR HANDLING =============
 
