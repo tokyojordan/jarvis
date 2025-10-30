@@ -1,11 +1,11 @@
 // src/controllers/portfolio.controller.ts
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { portfolioService, organizationService, workspaceService } from '../services';
-import { CreatePortfolioRequest, UpdatePortfolioRequest, ApiResponse } from '../types';
+import { portfolioService, workspaceService, organizationService } from '../services';
+import { ApiResponse } from '../types';
 
 /**
- * Portfolio Controller
+ * Portfolio Controller (v2.0 - Child knows parent)
  * Handles HTTP requests for portfolio operations
  */
 export class PortfolioController {
@@ -24,13 +24,9 @@ export class PortfolioController {
    *           schema:
    *             type: object
    *             required:
-   *               - organizationId
    *               - workspaceId
    *               - name
-   *               - ownerId
    *             properties:
-   *               organizationId:
-   *                 type: string
    *               workspaceId:
    *                 type: string
    *               name:
@@ -39,21 +35,8 @@ export class PortfolioController {
    *                 type: string
    *               color:
    *                 type: string
-   *               ownerId:
+   *               icon:
    *                 type: string
-   *               startDate:
-   *                 type: string
-   *                 format: date-time
-   *               endDate:
-   *                 type: string
-   *                 format: date-time
-   *               status:
-   *                 type: string
-   *                 enum: [planning, active, on_hold, completed, archived]
-   *               goals:
-   *                 type: array
-   *                 items:
-   *                   type: string
    *     responses:
    *       201:
    *         description: Portfolio created successfully
@@ -64,66 +47,36 @@ export class PortfolioController {
    */
   async create(req: AuthRequest, res: Response): Promise<void> {
     try {
-      console.log('POST /api/portfolios - Incoming request body:', JSON.stringify(req.body, null, 2));
-      console.log('POST /api/portfolios - x-user-id:', req.userId);
-
-      const {
-        workspaceId,
-        name,
-        description,
-        color,
-        ownerId,
-        startDate,
-        endDate,
-        status,
-        goals
-      } = req.body as CreatePortfolioRequest;
+      const { workspaceId, name, description, color, icon } = req.body;
       const userId = req.userId;
 
-      if (!workspaceId || !name || !ownerId) {
-        console.log('POST /api/portfolios - Validation failed: Missing required fields');
+      if (!workspaceId || !name) {
         res.status(400).json({
           success: false,
           error: 'Validation Error',
-          message: 'workspaceId, name, and ownerId are required',
+          message: 'workspaceId and name are required',
         } as ApiResponse);
         return;
       }
 
-      // Validate optional fields
-      if (startDate && isNaN(Date.parse(startDate))) {
-        console.log('POST /api/portfolios - Validation failed: Invalid startDate');
-        res.status(400).json({
+      // Verify workspace exists and user has access
+      const workspace = await workspaceService.getById(workspaceId);
+      if (!workspace) {
+        res.status(404).json({
           success: false,
-          error: 'Validation Error',
-          message: 'startDate must be a valid date',
+          error: 'Not Found',
+          message: 'Workspace not found',
         } as ApiResponse);
         return;
       }
-      if (endDate && isNaN(Date.parse(endDate))) {
-        console.log('POST /api/portfolios - Validation failed: Invalid endDate');
-        res.status(400).json({
+
+      // Check organization membership
+      const isMember = await organizationService.isMember(workspace.organizationId, userId);
+      if (!isMember) {
+        res.status(403).json({
           success: false,
-          error: 'Validation Error',
-          message: 'endDate must be a valid date',
-        } as ApiResponse);
-        return;
-      }
-      if (status && !['planning', 'active', 'on_hold', 'completed', 'archived'].includes(status)) {
-        console.log('POST /api/portfolios - Validation failed: Invalid status');
-        res.status(400).json({
-          success: false,
-          error: 'Validation Error',
-          message: 'status must be one of: planning, active, on_hold, completed, archived',
-        } as ApiResponse);
-        return;
-      }
-      if (goals && (!Array.isArray(goals) || goals.some(g => typeof g !== 'string'))) {
-        console.log('POST /api/portfolios - Validation failed: Invalid goals');
-        res.status(400).json({
-          success: false,
-          error: 'Validation Error',
-          message: 'goals must be an array of strings',
+          error: 'Forbidden',
+          message: 'You do not have access to this workspace',
         } as ApiResponse);
         return;
       }
@@ -131,19 +84,9 @@ export class PortfolioController {
       const portfolioId = await portfolioService.createPortfolio(
         workspaceId,
         name,
-        ownerId,
         userId,
-        {
-          description: description || '', // Ensure no undefined
-          color: color || '#000000', // Default color
-          startDate: startDate ? new Date(startDate) : undefined,
-          endDate: endDate ? new Date(endDate) : undefined,
-          status: status as 'planning' | 'active' | 'on_hold' | 'completed' | 'archived' | undefined,
-          goals: goals || [],
-        }
+        { description, color, icon }
       );
-
-      console.log('POST /api/portfolios - Created portfolio ID:', portfolioId);
 
       res.status(201).json({
         success: true,
@@ -151,7 +94,7 @@ export class PortfolioController {
         message: 'Portfolio created successfully',
       } as ApiResponse);
     } catch (error) {
-      console.error('POST /api/portfolios - Error creating portfolio:', error);
+      console.error('Error creating portfolio:', error);
       res.status(500).json({
         success: false,
         error: 'Internal Server Error',
@@ -159,7 +102,6 @@ export class PortfolioController {
       } as ApiResponse);
     }
   }
-
 
   /**
    * @swagger
@@ -178,10 +120,6 @@ export class PortfolioController {
    *     responses:
    *       200:
    *         description: Portfolio details
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/Portfolio'
    *       404:
    *         description: Portfolio not found
    *       403:
@@ -193,7 +131,6 @@ export class PortfolioController {
       const userId = req.userId;
 
       const portfolio = await portfolioService.getById(id);
-
       if (!portfolio) {
         res.status(404).json({
           success: false,
@@ -203,8 +140,18 @@ export class PortfolioController {
         return;
       }
 
-      // Check if user is member of organization
-      const isMember = await organizationService.isMember(portfolio.organizationId, userId);
+      // Traverse: Portfolio -> Workspace -> Organization
+      const workspace = await workspaceService.getById(portfolio.workspaceId);
+      if (!workspace) {
+        res.status(404).json({
+          success: false,
+          error: 'Not Found',
+          message: 'Associated workspace not found',
+        } as ApiResponse);
+        return;
+      }
+
+      const isMember = await organizationService.isMember(workspace.organizationId, userId);
       if (!isMember) {
         res.status(403).json({
           success: false,
@@ -232,21 +179,17 @@ export class PortfolioController {
    * @swagger
    * /api/portfolios:
    *   get:
-   *     summary: Get all portfolios (filtered by workspaceId or organizationId)
+   *     summary: Get all portfolios (filtered by workspaceId)
    *     tags: [Portfolios]
    *     security:
    *       - userAuth: []
    *     parameters:
    *       - in: query
    *         name: workspaceId
+   *         required: true
    *         schema:
    *           type: string
    *         description: Filter by workspace ID
-   *       - in: query
-   *         name: organizationId
-   *         schema:
-   *           type: string
-   *         description: Filter by organization ID
    *     responses:
    *       200:
    *         description: List of portfolios
@@ -257,54 +200,40 @@ export class PortfolioController {
    */
   async getAll(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { workspaceId, organizationId } = req.query;
+      const { workspaceId } = req.query;
       const userId = req.userId;
 
-      let portfolios;
-
-      if (workspaceId && typeof workspaceId === 'string') {
-        // Get workspace to verify organization membership
-        const workspace = await workspaceService.getById(workspaceId);
-        if (!workspace) {
-          res.status(404).json({
-            success: false,
-            error: 'Not Found',
-            message: 'Workspace not found',
-          } as ApiResponse);
-          return;
-        }
-
-        const isMember = await organizationService.isMember(workspace.organizationId, userId);
-        if (!isMember) {
-          res.status(403).json({
-            success: false,
-            error: 'Forbidden',
-            message: 'You do not have access to this workspace',
-          } as ApiResponse);
-          return;
-        }
-
-        portfolios = await portfolioService.getPortfoliosByWorkspace(workspaceId);
-      } else if (organizationId && typeof organizationId === 'string') {
-        const isMember = await organizationService.isMember(organizationId, userId);
-        if (!isMember) {
-          res.status(403).json({
-            success: false,
-            error: 'Forbidden',
-            message: 'You do not have access to this organization',
-          } as ApiResponse);
-          return;
-        }
-
-        portfolios = await portfolioService.getPortfoliosByOrganization(organizationId);
-      } else {
+      if (!workspaceId || typeof workspaceId !== 'string') {
         res.status(400).json({
           success: false,
           error: 'Validation Error',
-          message: 'workspaceId or organizationId query parameter is required',
+          message: 'workspaceId query parameter is required',
         } as ApiResponse);
         return;
       }
+
+      // Verify workspace exists and user has access
+      const workspace = await workspaceService.getById(workspaceId);
+      if (!workspace) {
+        res.status(404).json({
+          success: false,
+          error: 'Not Found',
+          message: 'Workspace not found',
+        } as ApiResponse);
+        return;
+      }
+
+      const isMember = await organizationService.isMember(workspace.organizationId, userId);
+      if (!isMember) {
+        res.status(403).json({
+          success: false,
+          error: 'Forbidden',
+          message: 'You do not have access to this workspace',
+        } as ApiResponse);
+        return;
+      }
+
+      const portfolios = await portfolioService.getPortfoliosByWorkspace(workspaceId);
 
       res.json({
         success: true,
@@ -347,23 +276,8 @@ export class PortfolioController {
    *                 type: string
    *               color:
    *                 type: string
-   *               ownerId:
+   *               icon:
    *                 type: string
-   *               startDate:
-   *                 type: string
-   *                 format: date-time
-   *               endDate:
-   *                 type: string
-   *                 format: date-time
-   *               status:
-   *                 type: string
-   *                 enum: [planning, active, on_hold, completed, archived]
-   *               goals:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *               metrics:
-   *                 type: object
    *     responses:
    *       200:
    *         description: Portfolio updated successfully
@@ -376,7 +290,7 @@ export class PortfolioController {
     try {
       const { id } = req.params;
       const userId = req.userId;
-      const updates = req.body as UpdatePortfolioRequest;
+      const updates = req.body;
 
       const portfolio = await portfolioService.getById(id);
       if (!portfolio) {
@@ -388,15 +302,23 @@ export class PortfolioController {
         return;
       }
 
-      // Check if user is portfolio owner or org owner
-      const isPortfolioOwner = portfolio.ownerId === userId;
-      const isOrgOwner = await organizationService.isOwner(portfolio.organizationId, userId);
+      // Traverse to check permissions
+      const workspace = await workspaceService.getById(portfolio.workspaceId);
+      if (!workspace) {
+        res.status(404).json({
+          success: false,
+          error: 'Not Found',
+          message: 'Associated workspace not found',
+        } as ApiResponse);
+        return;
+      }
 
-      if (!isPortfolioOwner && !isOrgOwner) {
+      const isOrgOwner = await organizationService.isOwner(workspace.organizationId, userId);
+      if (!isOrgOwner) {
         res.status(403).json({
           success: false,
           error: 'Forbidden',
-          message: 'Only portfolio owner or organization owner can update portfolio',
+          message: 'Only organization owners can update portfolios',
         } as ApiResponse);
         return;
       }
@@ -454,8 +376,18 @@ export class PortfolioController {
         return;
       }
 
-      // Check if user is owner of organization
-      const isOwner = await organizationService.isOwner(portfolio.organizationId, userId);
+      // Traverse to check permissions
+      const workspace = await workspaceService.getById(portfolio.workspaceId);
+      if (!workspace) {
+        res.status(404).json({
+          success: false,
+          error: 'Not Found',
+          message: 'Associated workspace not found',
+        } as ApiResponse);
+        return;
+      }
+
+      const isOwner = await organizationService.isOwner(workspace.organizationId, userId);
       if (!isOwner) {
         res.status(403).json({
           success: false,

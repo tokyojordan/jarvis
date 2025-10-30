@@ -1,7 +1,7 @@
 // tests/team.test.ts
 import supertest from 'supertest';
 import express from 'express';
-import { testEnv, getFirestoreForUser, Timestamp } from './setup';
+import { getFirestoreForUser, Timestamp } from './setup';
 import teamRoutes from '../src/routes/team.routes';
 import { Team } from '../src/types/entities';
 
@@ -12,7 +12,7 @@ app.use('/api/teams', teamRoutes);
 
 // Add to top of tests/team.test.ts and tests/portfolio.test.ts
 jest.mock('../src/middleware/auth.middleware', () => ({
-  authenticate: (req: any, next: any) => {
+  authenticate: (req: any, _res: any, next: any) => {
     req.userId = req.headers['x-user-id'];
     next();
   },
@@ -27,14 +27,9 @@ describe('Team API', () => {
 
   // In tests/team.test.ts and tests/portfolio.test.ts, update beforeEach
   beforeEach(async () => {
-    await testEnv.clearFirestore();
     const db = getFirestoreForUser('jd@dejongistan.email');
     await db.collection('users').doc('jd@dejongistan.email').set({
       email: 'jd@dejongistan.email',
-    });
-    await db.collection('organizations').doc('418CIuERVlLT7YkTvlbg').set({
-      ownerId: 'jd@dejongistan.email',
-      memberIds: ['jd@dejongistan.email'],
     });
     await db.collection('workspaces').doc('Pz69WDBkd6OmAAJn2uEO').set({
       organizationId: '418CIuERVlLT7YkTvlbg',
@@ -82,9 +77,8 @@ describe('Team API', () => {
       });
     });
 
-    it('should return 400 if organizationId is missing', async () => {
+    it('should return 400 if workspaceId is missing', async () => {
       const payload = {
-        workspaceId: 'Pz69WDBkd6OmAAJn2uEO',
         name: 'Test Team',
         memberIds: ['jd@dejongistan.email'],
       };
@@ -98,7 +92,7 @@ describe('Team API', () => {
       expect(response.body).toEqual({
         success: false,
         error: 'Bad Request',
-        message: 'organizationId is required and must be a non-empty string',
+        message: 'workspaceId is required and must be a non-empty string',
       });
     });
 

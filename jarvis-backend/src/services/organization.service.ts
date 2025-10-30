@@ -77,7 +77,11 @@ export class OrganizationService extends BaseService<Organization> {
    * Check if user is member of organization
    */
   async isMember(organizationId: string, userId: string): Promise<boolean> {
+    console.log(`OrganizationService.isMember called with orgId: ${organizationId}, userId: ${userId}`);
     const org = await this.getById(organizationId);
+    console.log(`Organization fetched:`, org);
+    console.log(`memberIds:`, org?.memberIds);
+    console.log(`includes check:`, org?.memberIds.includes(userId));
     return org ? org.memberIds.includes(userId) : false;
   }
 

@@ -1,12 +1,12 @@
+// src/controllers/project.controller.ts
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { projectService, organizationService, workspaceService, portfolioService } from '../services';
-import { CreateProjectRequest, UpdateProjectRequest, ApiResponse } from '../types';
+import { projectService, portfolioService, workspaceService, organizationService } from '../services';
+import { ApiResponse } from '../types';
 
 /**
- * Project Controller
+ * Project Controller (v2.0 - Child knows parent)
  * Handles HTTP requests for project operations
- * CRITICAL: Projects can belong to MULTIPLE portfolios (portfolioIds array)
  */
 export class ProjectController {
   /**
@@ -14,150 +14,83 @@ export class ProjectController {
    * /api/projects:
    *   post:
    *     summary: Create a new project
-   *     description: Projects can belong to multiple portfolios using portfolioIds array (child-knows-parent architecture)
    *     tags: [Projects]
    *     security:
    *       - userAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - organizationId
-   *               - workspaceId
-   *               - portfolioIds
-   *               - name
-   *               - ownerId
-   *             properties:
-   *               organizationId:
-   *                 type: string
-   *               workspaceId:
-   *                 type: string
-   *               portfolioIds:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *                 description: Array of portfolio IDs (child-knows-parent)
-   *               teamId:
-   *                 type: string
-   *               name:
-   *                 type: string
-   *               description:
-   *                 type: string
-   *               ownerId:
-   *                 type: string
-   *               memberIds:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *               startDate:
-   *                 type: string
-   *                 format: date-time
-   *               endDate:
-   *                 type: string
-   *                 format: date-time
-   *               status:
-   *                 type: string
-   *                 enum: [planning, active, on_hold, completed, archived]
-   *               priority:
-   *                 type: string
-   *                 enum: [low, medium, high, critical]
-   *               tags:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *               customFields:
-   *                 type: object
-   *     responses:
-   *       201:
-   *         description: Project created successfully
-   *       400:
-   *         description: Validation error
-   *       403:
-   *         description: Forbidden
    */
   async create(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { 
-        organizationId, 
-        workspaceId, 
-        portfolioIds,
-        teamId,
-        name, 
-        description, 
-        ownerId,
-        memberIds,
-        startDate,
-        endDate,
-        status,
-        priority,
-        tags,
-        customFields
-      } = req.body as CreateProjectRequest;
+      const { portfolioIds, name, description, color, icon, status } = req.body;
       const userId = req.userId;
 
-      if (!organizationId || !workspaceId || !portfolioIds || !Array.isArray(portfolioIds) || portfolioIds.length === 0 || !name || !ownerId) {
+      // Validate required fields
+      if (!portfolioIds || !Array.isArray(portfolioIds) || portfolioIds.length === 0) {
         res.status(400).json({
           success: false,
           error: 'Validation Error',
-          message: 'organizationId, workspaceId, portfolioIds (array), name, and ownerId are required',
+          message: 'portfolioIds must be a non-empty array',
         } as ApiResponse);
         return;
       }
 
-      // Check if user is member of organization
-      const isMember = await organizationService.isMember(organizationId, userId);
-      if (!isMember) {
-        res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          message: 'You must be a member of the organization',
-        } as ApiResponse);
-        return;
-      }
-
-      // Verify workspace belongs to organization
-      const workspace = await workspaceService.getById(workspaceId);
-      if (!workspace || workspace.organizationId !== organizationId) {
+      if (!name) {
         res.status(400).json({
           success: false,
           error: 'Validation Error',
-          message: 'Invalid workspace for this organization',
+          message: 'name is required',
         } as ApiResponse);
         return;
       }
 
-      // Verify all portfolios exist and belong to the workspace
+      // Verify all portfolios exist and user has access
       for (const portfolioId of portfolioIds) {
+        console.log(`Checking access for portfolio: ${portfolioId}`);
+        
         const portfolio = await portfolioService.getById(portfolioId);
-        if (!portfolio || portfolio.workspaceId !== workspaceId) {
-          res.status(400).json({
+        console.log(`Portfolio found:`, portfolio ? 'YES' : 'NO');
+        
+        if (!portfolio) {
+          res.status(404).json({
             success: false,
-            error: 'Validation Error',
-            message: `Invalid portfolio ${portfolioId} for this workspace`,
+            error: 'Not Found',
+            message: `Portfolio ${portfolioId} not found`,
+          } as ApiResponse);
+          return;
+        }
+
+        // Traverse: Portfolio -> Workspace -> Organization
+        console.log(`Looking for workspace: ${portfolio.workspaceId}`);
+        const workspace = await workspaceService.getById(portfolio.workspaceId);
+        console.log(`Workspace found:`, workspace ? 'YES' : 'NO', workspace);
+        
+        if (!workspace) {
+          res.status(404).json({
+            success: false,
+            error: 'Not Found',
+            message: 'Associated workspace not found',
+          } as ApiResponse);
+          return;
+        }
+
+        console.log(`Checking membership in org: ${workspace.organizationId} for user: ${userId}`);
+        const isMember = await organizationService.isMember(workspace.organizationId, userId);
+        console.log(`Is member:`, isMember);
+        
+        if (!isMember) {
+          res.status(403).json({
+            success: false,
+            error: 'Forbidden',
+            message: 'You do not have access to this portfolio',
           } as ApiResponse);
           return;
         }
       }
 
       const projectId = await projectService.createProject(
-        organizationId,
-        workspaceId,
-        portfolioIds, // ✅ Array of portfolio IDs
+        portfolioIds,
         name,
-        ownerId,
         userId,
-        teamId,
-        description,
-        memberIds,
-        startDate,
-        endDate,
-        status,
-        priority,
-        tags,
-        customFields
+        { description, color, icon, status }
       );
 
       res.status(201).json({
@@ -183,23 +116,6 @@ export class ProjectController {
    *     tags: [Projects]
    *     security:
    *       - userAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *     responses:
-   *       200:
-   *         description: Project details
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/Project'
-   *       404:
-   *         description: Project not found
-   *       403:
-   *         description: Forbidden
    */
   async getById(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -207,7 +123,6 @@ export class ProjectController {
       const userId = req.userId;
 
       const project = await projectService.getById(id);
-
       if (!project) {
         res.status(404).json({
           success: false,
@@ -217,9 +132,23 @@ export class ProjectController {
         return;
       }
 
-      // Check if user is member of organization
-      const isMember = await organizationService.isMember(project.organizationId, userId);
-      if (!isMember) {
+      // Check access through any of the portfolios
+      let hasAccess = false;
+      for (const portfolioId of project.portfolioIds) {
+        const portfolio = await portfolioService.getById(portfolioId);
+        if (portfolio) {
+          const workspace = await workspaceService.getById(portfolio.workspaceId);
+          if (workspace) {
+            const isMember = await organizationService.isMember(workspace.organizationId, userId);
+            if (isMember) {
+              hasAccess = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!hasAccess) {
         res.status(403).json({
           success: false,
           error: 'Forbidden',
@@ -246,114 +175,57 @@ export class ProjectController {
    * @swagger
    * /api/projects:
    *   get:
-   *     summary: Get all projects (filtered by workspaceId, portfolioId, or organizationId)
-   *     description: Use portfolioId to query projects in a specific portfolio (uses array-contains)
+   *     summary: Get all projects (filtered by portfolioId)
    *     tags: [Projects]
    *     security:
    *       - userAuth: []
-   *     parameters:
-   *       - in: query
-   *         name: workspaceId
-   *         schema:
-   *           type: string
-   *         description: Filter by workspace ID
-   *       - in: query
-   *         name: portfolioId
-   *         schema:
-   *           type: string
-   *         description: Filter by portfolio ID (array-contains query)
-   *       - in: query
-   *         name: organizationId
-   *         schema:
-   *           type: string
-   *         description: Filter by organization ID
-   *       - in: query
-   *         name: teamId
-   *         schema:
-   *           type: string
-   *         description: Filter by team ID
-   *     responses:
-   *       200:
-   *         description: List of projects
-   *       400:
-   *         description: Validation error
-   *       403:
-   *         description: Forbidden
    */
   async getAll(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { workspaceId, portfolioId, organizationId, teamId } = req.query;
+      const { portfolioId } = req.query;
       const userId = req.userId;
 
-      let projects;
-
-      if (portfolioId && typeof portfolioId === 'string') {
-        // Query by portfolio using array-contains (child-knows-parent)
-        const portfolio = await portfolioService.getById(portfolioId);
-        if (!portfolio) {
-          res.status(404).json({
-            success: false,
-            error: 'Not Found',
-            message: 'Portfolio not found',
-          } as ApiResponse);
-          return;
-        }
-
-        const isMember = await organizationService.isMember(portfolio.organizationId, userId);
-        if (!isMember) {
-          res.status(403).json({
-            success: false,
-            error: 'Forbidden',
-            message: 'You do not have access to this portfolio',
-          } as ApiResponse);
-          return;
-        }
-
-        projects = await projectService.getProjectsByPortfolio(portfolioId);
-      } else if (workspaceId && typeof workspaceId === 'string') {
-        const workspace = await workspaceService.getById(workspaceId);
-        if (!workspace) {
-          res.status(404).json({
-            success: false,
-            error: 'Not Found',
-            message: 'Workspace not found',
-          } as ApiResponse);
-          return;
-        }
-
-        const isMember = await organizationService.isMember(workspace.organizationId, userId);
-        if (!isMember) {
-          res.status(403).json({
-            success: false,
-            error: 'Forbidden',
-            message: 'You do not have access to this workspace',
-          } as ApiResponse);
-          return;
-        }
-
-        projects = await projectService.getProjectsByWorkspace(workspaceId);
-      } else if (teamId && typeof teamId === 'string') {
-        projects = await projectService.getProjectsByTeam(teamId);
-      } else if (organizationId && typeof organizationId === 'string') {
-        const isMember = await organizationService.isMember(organizationId, userId);
-        if (!isMember) {
-          res.status(403).json({
-            success: false,
-            error: 'Forbidden',
-            message: 'You do not have access to this organization',
-          } as ApiResponse);
-          return;
-        }
-
-        projects = await projectService.getProjectsByOrganization(organizationId);
-      } else {
+      if (!portfolioId || typeof portfolioId !== 'string') {
         res.status(400).json({
           success: false,
           error: 'Validation Error',
-          message: 'workspaceId, portfolioId, teamId, or organizationId query parameter is required',
+          message: 'portfolioId query parameter is required',
         } as ApiResponse);
         return;
       }
+
+      // Verify portfolio exists and user has access
+      const portfolio = await portfolioService.getById(portfolioId);
+      if (!portfolio) {
+        res.status(404).json({
+          success: false,
+          error: 'Not Found',
+          message: 'Portfolio not found',
+        } as ApiResponse);
+        return;
+      }
+
+      const workspace = await workspaceService.getById(portfolio.workspaceId);
+      if (!workspace) {
+        res.status(404).json({
+          success: false,
+          error: 'Not Found',
+          message: 'Associated workspace not found',
+        } as ApiResponse);
+        return;
+      }
+
+      const isMember = await organizationService.isMember(workspace.organizationId, userId);
+      if (!isMember) {
+        res.status(403).json({
+          success: false,
+          error: 'Forbidden',
+          message: 'You do not have access to this portfolio',
+        } as ApiResponse);
+        return;
+      }
+
+      const projects = await projectService.getProjectsByPortfolio(portfolioId);
 
       res.json({
         success: true,
@@ -368,76 +240,21 @@ export class ProjectController {
       } as ApiResponse);
     }
   }
+
   /**
    * @swagger
    * /api/projects/{id}:
    *   patch:
    *     summary: Update project
-   *     description: Can update portfolioIds array to add/remove portfolio associations
    *     tags: [Projects]
    *     security:
    *       - userAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             properties:
-   *               portfolioIds:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *                 description: Update portfolio associations
-   *               teamId:
-   *                 type: string
-   *               name:
-   *                 type: string
-   *               description:
-   *                 type: string
-   *               ownerId:
-   *                 type: string
-   *               memberIds:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *               startDate:
-   *                 type: string
-   *                 format: date-time
-   *               endDate:
-   *                 type: string
-   *                 format: date-time
-   *               status:
-   *                 type: string
-   *                 enum: [planning, active, on_hold, completed, archived]
-   *               priority:
-   *                 type: string
-   *                 enum: [low, medium, high, critical]
-   *               tags:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *               customFields:
-   *                 type: object
-   *     responses:
-   *       200:
-   *         description: Project updated successfully
-   *       404:
-   *         description: Project not found
-   *       403:
-   *         description: Forbidden
    */
   async update(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
       const userId = req.userId;
-      const updates = req.body as UpdateProjectRequest;
+      const updates = req.body;
 
       const project = await projectService.getById(id);
       if (!project) {
@@ -449,32 +266,26 @@ export class ProjectController {
         return;
       }
 
-      // Check if user is project owner or org owner
-      const isProjectOwner = project.ownerId === userId;
-      const isOrgOwner = await organizationService.isOwner(project.organizationId, userId);
+      // Check if user has access (through any portfolio)
+      let isOrgOwner = false;
+      for (const portfolioId of project.portfolioIds) {
+        const portfolio = await portfolioService.getById(portfolioId);
+        if (portfolio) {
+          const workspace = await workspaceService.getById(portfolio.workspaceId);
+          if (workspace) {
+            isOrgOwner = await organizationService.isOwner(workspace.organizationId, userId);
+            if (isOrgOwner) break;
+          }
+        }
+      }
 
-      if (!isProjectOwner && !isOrgOwner) {
+      if (!isOrgOwner) {
         res.status(403).json({
           success: false,
           error: 'Forbidden',
-          message: 'Only project owner or organization owner can update project',
+          message: 'Only organization owners can update projects',
         } as ApiResponse);
         return;
-      }
-
-      // If updating portfolioIds, verify all portfolios exist and belong to workspace
-      if (updates.portfolioIds && Array.isArray(updates.portfolioIds)) {
-        for (const portfolioId of updates.portfolioIds) {
-          const portfolio = await portfolioService.getById(portfolioId);
-          if (!portfolio || portfolio.workspaceId !== project.workspaceId) {
-            res.status(400).json({
-              success: false,
-              error: 'Validation Error',
-              message: `Invalid portfolio ${portfolioId} for this workspace`,
-            } as ApiResponse);
-            return;
-          }
-        }
       }
 
       await projectService.update(id, updates, userId);
@@ -501,19 +312,6 @@ export class ProjectController {
    *     tags: [Projects]
    *     security:
    *       - userAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *     responses:
-   *       200:
-   *         description: Project deleted successfully
-   *       404:
-   *         description: Project not found
-   *       403:
-   *         description: Forbidden
    */
   async delete(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -530,9 +328,20 @@ export class ProjectController {
         return;
       }
 
-      // Check if user is owner of organization
-      const isOwner = await organizationService.isOwner(project.organizationId, userId);
-      if (!isOwner) {
+      // Check if user is org owner (through any portfolio)
+      let isOrgOwner = false;
+      for (const portfolioId of project.portfolioIds) {
+        const portfolio = await portfolioService.getById(portfolioId);
+        if (portfolio) {
+          const workspace = await workspaceService.getById(portfolio.workspaceId);
+          if (workspace) {
+            isOrgOwner = await organizationService.isOwner(workspace.organizationId, userId);
+            if (isOrgOwner) break;
+          }
+        }
+      }
+
+      if (!isOrgOwner) {
         res.status(403).json({
           success: false,
           error: 'Forbidden',
@@ -562,76 +371,14 @@ export class ProjectController {
    * /api/projects/{id}/portfolios/{portfolioId}:
    *   post:
    *     summary: Add project to portfolio
-   *     description: Atomically add a portfolio to the project's portfolioIds array
    *     tags: [Projects]
    *     security:
    *       - userAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *       - in: path
-   *         name: portfolioId
-   *         required: true
-   *         schema:
-   *           type: string
-   *     responses:
-   *       200:
-   *         description: Project added to portfolio successfully
-   *       404:
-   *         description: Project or portfolio not found
-   *       403:
-   *         description: Forbidden
    */
   async addToPortfolio(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id, portfolioId } = req.params;
       const userId = req.userId;
-
-      const project = await projectService.getById(id);
-      if (!project) {
-        res.status(404).json({
-          success: false,
-          error: 'Not Found',
-          message: 'Project not found',
-        } as ApiResponse);
-        return;
-      }
-
-      const portfolio = await portfolioService.getById(portfolioId);
-      if (!portfolio) {
-        res.status(404).json({
-          success: false,
-          error: 'Not Found',
-          message: 'Portfolio not found',
-        } as ApiResponse);
-        return;
-      }
-
-      // Verify portfolio belongs to same workspace
-      if (portfolio.workspaceId !== project.workspaceId) {
-        res.status(400).json({
-          success: false,
-          error: 'Validation Error',
-          message: 'Portfolio must belong to the same workspace as the project',
-        } as ApiResponse);
-        return;
-      }
-
-      // Check if user is project owner or org owner
-      const isProjectOwner = project.ownerId === userId;
-      const isOrgOwner = await organizationService.isOwner(project.organizationId, userId);
-
-      if (!isProjectOwner && !isOrgOwner) {
-        res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          message: 'Only project owner or organization owner can add to portfolio',
-        } as ApiResponse);
-        return;
-      }
 
       await projectService.addToPortfolio(id, portfolioId, userId);
 
@@ -654,56 +401,14 @@ export class ProjectController {
    * /api/projects/{id}/portfolios/{portfolioId}:
    *   delete:
    *     summary: Remove project from portfolio
-   *     description: Atomically remove a portfolio from the project's portfolioIds array
    *     tags: [Projects]
    *     security:
    *       - userAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *       - in: path
-   *         name: portfolioId
-   *         required: true
-   *         schema:
-   *           type: string
-   *     responses:
-   *       200:
-   *         description: Project removed from portfolio successfully
-   *       404:
-   *         description: Project not found
-   *       403:
-   *         description: Forbidden
    */
   async removeFromPortfolio(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id, portfolioId } = req.params;
       const userId = req.userId;
-
-      const project = await projectService.getById(id);
-      if (!project) {
-        res.status(404).json({
-          success: false,
-          error: 'Not Found',
-          message: 'Project not found',
-        } as ApiResponse);
-        return;
-      }
-
-      // Check if user is project owner or org owner
-      const isProjectOwner = project.ownerId === userId;
-      const isOrgOwner = await organizationService.isOwner(project.organizationId, userId);
-
-      if (!isProjectOwner && !isOrgOwner) {
-        res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          message: 'Only project owner or organization owner can remove from portfolio',
-        } as ApiResponse);
-        return;
-      }
 
       await projectService.removeFromPortfolio(id, portfolioId, userId);
 

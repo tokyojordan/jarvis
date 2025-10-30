@@ -47,8 +47,7 @@ export interface IconConfig {
 /**
  * Organization entity
  */
-export interface Organization {
-  id: string;
+export interface Organization extends BaseEntity {
   name: string;
   description?: string;
   ownerId: string;
@@ -58,15 +57,12 @@ export interface Organization {
     locale?: string;
     [key: string]: any;
   };
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
 /**
  * Workspace entity (belongs to Organization)
  */
-export interface Workspace {
-  id: string;
+export interface Workspace extends BaseEntity {
   organizationId: string;
   name: string;
   description?: string;
@@ -77,10 +73,6 @@ export interface Workspace {
   // Icon options (use ONE of these approaches):
   icon?: string;            // Icon library identifier: "rocket" or emoji: "🚀"
   iconConfig?: IconConfig;  // Full icon configuration object
-  
-  userId: string;           // Creator
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
 /**
@@ -91,28 +83,24 @@ export interface Workspace {
  * project-team mapping or add teamId to Project (but this violates
  * the direct-parent-only rule, so consider if you really need it).
  */
-export interface Team {
-  id: string;
-  workspaceId: string;
+export interface Team extends BaseEntity {
+  workspaceId: string;  // ✅ Only direct parent
   name: string;
   description?: string;
   memberIds: string[];
+  leaderId?: string;
   
   // Visual customization
   color?: string;
   icon?: string;
   iconConfig?: IconConfig;
-  
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
 /**
  * Portfolio entity (belongs to Workspace)
  */
-export interface Portfolio {
-  id: string;
-  workspaceId: string;
+export interface Portfolio extends BaseEntity {
+  workspaceId: string;  // ✅ Only direct parent
   name: string;
   description?: string;
   
@@ -121,9 +109,10 @@ export interface Portfolio {
   icon?: string;
   iconConfig?: IconConfig;
   
-  status: PortfolioStatus;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  // Status fields (not a separate object)
+  completionPercentage: number;
+  totalTasks: number;
+  completedTasks: number;
 }
 
 /**
@@ -147,8 +136,7 @@ export interface PortfolioStatus {
  * Note: Projects ONLY store portfolioIds (direct parent).
  * To get workspace/organization, traverse: Project → Portfolio → Workspace → Organization
  */
-export interface Project {
-  id: string;
+export interface Project extends BaseEntity {
   portfolioIds: string[];   // ✅ Direct parent only (v2.0 model, many-to-many)
   name: string;
   description?: string;
@@ -160,17 +148,13 @@ export interface Project {
   
   status: 'not_started' | 'in_progress' | 'completed';
   completionPercentage: number;
-  
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
 /**
  * Task entity (v2.0 - child knows parent)
  * Tasks can belong to MULTIPLE projects (many-to-many)
  */
-export interface Task {
-  id: string;
+export interface Task extends BaseEntity {
   projectIds: string[];     // ✅ Array of project IDs (v2.0 model)
   userId: string;
   title: string;
@@ -187,9 +171,6 @@ export interface Task {
   
   // Status
   status: 'not_started' | 'in_progress' | 'completed';
-  
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
 /**
@@ -229,4 +210,13 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
+}
+
+/**
+ * Base entity interface - all entities extend this
+ */
+export interface BaseEntity {
+  id: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }

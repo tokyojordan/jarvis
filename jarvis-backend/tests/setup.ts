@@ -1,32 +1,29 @@
 // tests/setup.ts
-import { initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { readFileSync } from 'fs';
-import { Timestamp } from 'firebase/firestore';
+//import { readFileSync } from 'fs';
+import { Timestamp } from 'firebase-admin/firestore';
+import { db } from '../src/config/firebase';
 
-let testEnv: RulesTestEnvironment;
-
-beforeAll(async () => {
-  testEnv = await initializeTestEnvironment({
-    projectId: 'jarvis-test',
-    firestore: {
-      rules: readFileSync('firestore.rules', 'utf8'),
-      host: 'localhost',
-      port: 8090,
-    },
-  });
-});
+// Set emulator host before importing
+process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8090';
 
 beforeEach(async () => {
-  await testEnv.clearFirestore();
+  // Clear all collections
+  const collections = await db.listCollections();
+  for (const collection of collections) {
+    const snapshot = await collection.get();
+    for (const doc of snapshot.docs) {
+      await doc.ref.delete();
+    }
+  }
 });
 
 afterAll(async () => {
-  await testEnv.cleanup();
+  // No cleanup needed for Firebase Admin
 });
 
-// Helper function to get Firestore for a user context
-export const getFirestoreForUser = (userId: string) => {
-  return testEnv.authenticatedContext(userId).firestore();
+// Helper function to get Firestore (now just returns the admin db)
+export const getFirestoreForUser = (_userId: string) => {
+  return db;
 };
 
-export { testEnv, Timestamp };
+export { Timestamp };

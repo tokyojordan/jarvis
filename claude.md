@@ -19,6 +19,9 @@ https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/visual-comp
 
 📁 Files under jarvis-backend (excluding node_modules):
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/.gitignore
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/firebase.json
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/firebase.rules
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/jest.config.js
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/showFiles.sh
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/src/config/constants.ts
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/src/config/firebase.ts
@@ -49,4 +52,7 @@ https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-back
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/src/types/api.ts
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/src/types/entities.ts
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/src/types/index.ts
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/tests/portfolio.test.ts
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/tests/setup.ts
+https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/tests/team.test.ts
 https://raw.githubusercontent.com/tokyojordan/jarvis/refs/heads/main/jarvis-backend/tsconfig.json

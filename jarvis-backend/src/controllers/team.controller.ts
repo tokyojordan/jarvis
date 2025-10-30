@@ -91,17 +91,8 @@ export class TeamController {
         return;
       }
 
-      const { organizationId, workspaceId, name, description, memberIds, leaderId } = req.body;
+      const { workspaceId, name, description, memberIds, leaderId } = req.body;
 
-      if (!organizationId || typeof organizationId !== 'string' || organizationId.trim() === '') {
-        console.log('POST /api/teams - Validation failed: Invalid organizationId');
-        res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          message: 'organizationId is required and must be a non-empty string',
-        });
-        return;
-      }
       if (!workspaceId || typeof workspaceId !== 'string' || workspaceId.trim() === '') {
         console.log('POST /api/teams - Validation failed: Invalid workspaceId');
         res.status(400).json({
@@ -149,7 +140,6 @@ export class TeamController {
       }
 
       const teamData: Omit<Team, 'id' | 'createdAt' | 'updatedAt'> = {
-        organizationId,
         workspaceId,
         name,
         description: description || '',
@@ -258,6 +248,155 @@ export class TeamController {
       res.json({ success: true, data: team });
     } catch (error) {
       console.error('GET /api/teams/:id - Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Something went wrong',
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/teams:
+   *   get:
+   *     summary: Get all teams (filtered by workspaceId)
+   *     tags: [Teams]
+   *     security:
+   *       - userAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: workspaceId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of teams
+   */
+  async getAll(req: Request, res: Response): Promise<void> {
+    try {
+      const { workspaceId } = req.query;
+
+      if (!workspaceId || typeof workspaceId !== 'string') {
+        res.status(400).json({
+          success: false,
+          error: 'Bad Request',
+          message: 'workspaceId query parameter is required',
+        });
+        return;
+      }
+
+      const teams = await teamService.getTeamsByWorkspace(workspaceId);
+      res.json({ success: true, data: teams });
+    } catch (error) {
+      console.error('GET /api/teams - Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Something went wrong',
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/teams/{id}:
+   *   patch:
+   *     summary: Update a team
+   *     tags: [Teams]
+   *     security:
+   *       - userAuth: []
+   */
+  async update(req: Request, res: Response): Promise<void> {
+    try {
+      const teamId = req.params.id;
+      const userId = req.headers['x-user-id'] as string;
+      const updates = req.body;
+
+      await teamService.update(teamId, updates, userId);
+      res.json({ success: true, message: 'Team updated successfully' });
+    } catch (error) {
+      console.error('PATCH /api/teams/:id - Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Something went wrong',
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/teams/{id}:
+   *   delete:
+   *     summary: Delete a team
+   *     tags: [Teams]
+   *     security:
+   *       - userAuth: []
+   */
+  async delete(req: Request, res: Response): Promise<void> {
+    try {
+      const teamId = req.params.id;
+
+      await teamService.delete(teamId);
+      res.json({ success: true, message: 'Team deleted successfully' });
+    } catch (error) {
+      console.error('DELETE /api/teams/:id - Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Something went wrong',
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/teams/{id}/members:
+   *   post:
+   *     summary: Add member to team
+   *     tags: [Teams]
+   *     security:
+   *       - userAuth: []
+   */
+  async addMember(req: Request, res: Response): Promise<void> {
+    try {
+      const teamId = req.params.id;
+      const { userId: memberUserId } = req.body;
+      const userId = req.headers['x-user-id'] as string;
+
+      await teamService.addMember(teamId, memberUserId, userId);
+      res.json({ success: true, message: 'Member added successfully' });
+    } catch (error) {
+      console.error('POST /api/teams/:id/members - Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Something went wrong',
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/teams/{id}/members/{userId}:
+   *   delete:
+   *     summary: Remove member from team
+   *     tags: [Teams]
+   *     security:
+   *       - userAuth: []
+   */
+  async removeMember(req: Request, res: Response): Promise<void> {
+    try {
+      const teamId = req.params.id;
+      const memberUserId = req.params.userId;
+      const userId = req.headers['x-user-id'] as string;
+
+      await teamService.removeMember(teamId, memberUserId, userId);
+      res.json({ success: true, message: 'Member removed successfully' });
+    } catch (error) {
+      console.error('DELETE /api/teams/:id/members/:userId - Error:', error);
       res.status(500).json({
         success: false,
         error: 'Internal Server Error',

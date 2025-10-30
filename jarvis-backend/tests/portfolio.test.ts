@@ -1,7 +1,7 @@
 // tests/portfolio.test.ts
 import supertest from 'supertest';
 import express from 'express';
-import { testEnv, getFirestoreForUser, Timestamp } from './setup';
+import { getFirestoreForUser, Timestamp } from './setup';
 import portfolioRoutes from '../src/routes/portfolio.routes';
 import { Portfolio } from '../src/types';
 
@@ -12,7 +12,7 @@ app.use('/api/portfolios', portfolioRoutes);
 
 // Add to top of tests/team.test.ts and tests/portfolio.test.ts
 jest.mock('../src/middleware/auth.middleware', () => ({
-  authenticate: (req: any, next: any) => {
+  authenticate: (req: any, _res: any, next: any) => {
     req.userId = req.headers['x-user-id'];
     next();
   },
@@ -26,14 +26,25 @@ describe('Portfolio API', () => {
   });
 
   beforeEach(async () => {
-    await testEnv.clearFirestore();
-    // Mock user data for auth middleware
-    await getFirestoreForUser('jd@dejongistan.email')
-      .collection('users')
-      .doc('jd@dejongistan.email')
-      .set({
-        email: 'jd@dejongistan.email',
-      });
+    const db = getFirestoreForUser('jd@dejongistan.email');
+    
+    // Create user
+    await db.collection('users').doc('jd@dejongistan.email').set({
+      email: 'jd@dejongistan.email',
+    });
+    
+    // Create organization
+    await db.collection('organizations').doc('418CIuERVlLT7YkTvlbg').set({
+      ownerId: 'jd@dejongistan.email',
+      memberIds: ['jd@dejongistan.email'],
+      name: 'Test Org',
+    });
+    
+    // Create workspace
+    await db.collection('workspaces').doc('Pz69WDBkd6OmAAJn2uEO').set({
+      organizationId: '418CIuERVlLT7YkTvlbg',
+      name: 'Test Workspace',
+    });
   });
 
   describe('POST /api/portfolios', () => {
@@ -43,11 +54,7 @@ describe('Portfolio API', () => {
         name: 'Software Development Portfolio',
         description: 'APIs, websites, apps or other goodies',
         color: '#4F46E5',
-        ownerId: 'jd@dejongistan.email',
-        startDate: '2025-10-25T08:03:14.898Z',
-        endDate: '2025-10-25T08:03:14.898Z',
-        status: 'planning',
-        goals: ['Develop awesome profitable software'],
+        icon: 'folder',
       };
 
       const response = await request
@@ -73,14 +80,10 @@ describe('Portfolio API', () => {
         name: payload.name,
         description: payload.description,
         color: payload.color,
-        ownerId: payload.ownerId,
-        startDate: expect.any(Timestamp),
-        endDate: expect.any(Timestamp),
-        status: payload.status,
-        goals: payload.goals,
-        metrics: {},
-        createdBy: 'jd@dejongistan.email',
-        updatedBy: 'jd@dejongistan.email',
+        icon: payload.icon,
+        completionPercentage: 0,
+        totalTasks: 0,
+        completedTasks: 0,
         createdAt: expect.any(Timestamp),
         updatedAt: expect.any(Timestamp),
       });
@@ -101,28 +104,7 @@ describe('Portfolio API', () => {
       expect(response.body).toEqual({
         success: false,
         error: 'Validation Error',
-        message: 'workspaceId, name, and ownerId are required',
-      });
-    });
-
-    it('should return 400 if status is invalid', async () => {
-      const payload = {
-        workspaceId: 'Pz69WDBkd6OmAAJn2uEO',
-        name: 'Software Development Portfolio',
-        ownerId: 'jd@dejongistan.email',
-        status: 'invalid_status',
-      };
-
-      const response = await request
-        .post('/api/portfolios')
-        .set('x-user-id', 'jd@dejongistan.email')
-        .send(payload)
-        .expect(400);
-
-      expect(response.body).toEqual({
-        success: false,
-        error: 'Validation Error',
-        message: 'status must be one of: planning, active, on_hold, completed, archived',
+        message: 'workspaceId and name are required',
       });
     });
   });
